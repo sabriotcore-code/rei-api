@@ -498,14 +498,13 @@ app.get('/', (req, res) => {
 // CLOUD FUNCTIONS EXPORT
 // ============================================================================
 
+// For Google Cloud Functions (optional)
 functions.http('api', app);
 
-// Local development server
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 8080;
-  app.listen(PORT, () => {
-    console.log(`REI API running on http://localhost:${PORT}`);
-  });
-}
+// Start server (Railway and local dev)
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`REI API running on port ${PORT}`);
+});
 
 module.exports = { app };
