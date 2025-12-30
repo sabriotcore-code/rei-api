@@ -255,12 +255,13 @@ const handlers = {
   },
 
   // Get open to-dos for a specific property
+  // filter: 'open' (default), 'future', 'completed', 'all'
   getOpenTodos: async (data) => {
-    const { reid, includeFuture, includeCompleted } = data;
+    const { reid, filter = 'open' } = data;
     const rows = await getSheetData(CONFIG.SHEETS.PME, `${CONFIG.TABS.TO_DO_MASTER}!A:Z`);
 
     if (rows.length < 2) {
-      return { success: true, todos: [], count: 0, activeCount: 0, futureCount: 0, completedCount: 0 };
+      return { success: true, todos: [], count: 0, openCount: 0, futureCount: 0, completedCount: 0 };
     }
 
     const headers = rows[0].map(normalizeHeader);
@@ -291,12 +292,21 @@ const handlers = {
       if (dueDateStr) {
         dueDate = new Date(dueDateStr);
         if (!isNaN(dueDate.getTime())) {
+          dueDate.setHours(0, 0, 0, 0);
           isFuture = dueDate > sevenDaysOut;
         }
       }
 
       const assignee = row[headerMap['ASSIGNED_TO']] || row[headerMap['WHO']] || 'Unassigned';
       const createdDate = row[headerMap['CREATED_DATE/TIME']] || row[headerMap['CREATED']] || '';
+
+      // Determine category: open (active), future, or completed
+      let category = 'open';
+      if (isCompleted) {
+        category = 'completed';
+      } else if (isFuture) {
+        category = 'future';
+      }
 
       allTodos.push({
         rowIndex: i + 1,
@@ -308,7 +318,8 @@ const handlers = {
         status: status,
         createdDate: createdDate,
         dueDate: dueDateStr,
-        isFuture: isFuture && !isCompleted, // Only mark as future if not completed
+        category,
+        isFuture,
         isCompleted,
         sourceStatus: row[headerMap['SOURCE_STATUS']] || '',
         linkedNoteId: row[headerMap['LINKED_NOTE_ID']] || '',
@@ -318,36 +329,38 @@ const handlers = {
       });
     }
 
-    // Calculate counts from ALL todos (before filtering)
-    const activeCount = allTodos.filter(t => !t.isCompleted && !t.isFuture).length;
-    const futureCount = allTodos.filter(t => !t.isCompleted && t.isFuture).length;
-    const completedCount = allTodos.filter(t => t.isCompleted).length;
+    // Calculate counts from ALL todos
+    const openCount = allTodos.filter(t => t.category === 'open').length;
+    const futureCount = allTodos.filter(t => t.category === 'future').length;
+    const completedCount = allTodos.filter(t => t.category === 'completed').length;
 
-    // Second pass: filter based on user preferences
-    let filteredTodos = allTodos.filter(t => {
-      // Always include active (not completed, not future)
-      if (!t.isCompleted && !t.isFuture) return true;
+    // Filter based on selected filter
+    let filteredTodos = allTodos;
+    if (filter === 'open') {
+      filteredTodos = allTodos.filter(t => t.category === 'open');
+    } else if (filter === 'future') {
+      filteredTodos = allTodos.filter(t => t.category === 'future');
+    } else if (filter === 'completed') {
+      filteredTodos = allTodos.filter(t => t.category === 'completed');
+    }
+    // 'all' returns everything
 
-      // Include future if toggle is on
-      if (t.isFuture && !t.isCompleted && includeFuture) return true;
-
-      // Include completed if toggle is on
-      if (t.isCompleted && includeCompleted) return true;
-
-      return false;
-    });
-
-    // Sort: overdue first, then by due date, then by created date
+    // Sort: by due date for open/future, by completedAt for completed
     filteredTodos.sort((a, b) => {
-      // Completed always last
-      if (a.isCompleted && !b.isCompleted) return 1;
-      if (!a.isCompleted && b.isCompleted) return -1;
+      // Completed always last when showing all
+      if (filter === 'all') {
+        if (a.isCompleted && !b.isCompleted) return 1;
+        if (!a.isCompleted && b.isCompleted) return -1;
+      }
 
-      // Future after active
-      if (a.isFuture && !b.isFuture) return 1;
-      if (!a.isFuture && b.isFuture) return -1;
+      // For completed, sort by completedAt (newest first)
+      if (a.isCompleted && b.isCompleted) {
+        const aDate = a.completedAt ? new Date(a.completedAt) : new Date(0);
+        const bDate = b.completedAt ? new Date(b.completedAt) : new Date(0);
+        return bDate - aDate;
+      }
 
-      // By due date
+      // For open/future, sort by due date (soonest first, overdue at top)
       const aDate = a.dueDate ? new Date(a.dueDate) : new Date('2099-12-31');
       const bDate = b.dueDate ? new Date(b.dueDate) : new Date('2099-12-31');
       return aDate - bDate;
@@ -357,7 +370,7 @@ const handlers = {
       success: true,
       todos: filteredTodos,
       count: filteredTodos.length,
-      activeCount,
+      openCount,
       futureCount,
       completedCount,
       timestamp: new Date().toISOString()
