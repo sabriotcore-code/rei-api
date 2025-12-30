@@ -469,6 +469,46 @@ const handlers = {
       flagged: data.flagged,
       timestamp: new Date().toISOString()
     };
+  },
+
+  // Get note history for a property or all
+  getNoteHistory: async (data) => {
+    const rows = await getSheetData(CONFIG.SHEETS.NOTE_HISTORY, 'NOTE_HISTORY!A:F');
+    if (rows.length < 2) {
+      return { success: true, notes: [], count: 0 };
+    }
+
+    const headers = rows[0].map(normalizeHeader);
+    const headerMap = {};
+    headers.forEach((h, i) => { if (h) headerMap[h.toUpperCase().replace(/\s+/g, '_')] = i; });
+
+    const notes = [];
+    const reidFilter = data.reid ? data.reid : null;
+    const limit = data.limit || 100;
+
+    // Process from bottom (newest) to top (oldest)
+    for (let i = rows.length - 1; i >= 1 && notes.length < limit; i--) {
+      const row = rows[i];
+      const rowReid = row[headerMap['REID']] || row[1] || '';
+
+      if (reidFilter && rowReid !== reidFilter) continue;
+
+      notes.push({
+        timestamp: row[headerMap['TIMESTAMP']] || row[0] || '',
+        reid: rowReid,
+        primary: row[headerMap['PRIMARY']] || row[2] || '',
+        note: row[headerMap['NOTE']] || row[3] || '',
+        noteId: row[headerMap['NOTE_ID']] || row[headerMap['QUEUE_ID']] || row[4] || '',
+        source: row[headerMap['SOURCE']] || row[5] || ''
+      });
+    }
+
+    return {
+      success: true,
+      notes,
+      count: notes.length,
+      timestamp: new Date().toISOString()
+    };
   }
 };
 
