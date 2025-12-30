@@ -85,6 +85,44 @@ function generateId(prefix = 'ID') {
   return `${prefix}-${timestamp}-${random}`.toUpperCase();
 }
 
+// Parse #tagged users from note text
+function parseTaggedUsers(noteText) {
+  if (!noteText) return [];
+  // Match #Name patterns (letters, numbers, @, ., -)
+  const tagPattern = /#([a-zA-Z][a-zA-Z0-9@.\-]*)/g;
+  const matches = noteText.match(tagPattern) || [];
+
+  // Extract names, normalize, and deduplicate
+  const tagged = [...new Set(
+    matches.map(tag => {
+      const name = tag.substring(1); // Remove #
+      // Capitalize first letter for consistency
+      return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+    })
+  )];
+
+  return tagged;
+}
+
+// Detect who wrote the note (for future user detection)
+function detectNoteAuthor(data) {
+  // Check if author explicitly provided
+  if (data.noteBy) return data.noteBy;
+  if (data.author) return data.author;
+  if (data.user) return data.user;
+
+  // Check for email pattern
+  if (data.email) {
+    if (data.email.includes('matt')) return 'Matt';
+    if (data.email.includes('erik')) return 'Erik';
+    if (data.email.includes('jon')) return 'Jon';
+    return data.email;
+  }
+
+  // Default to Matt for now
+  return 'Matt';
+}
+
 async function getSheetData(spreadsheetId, range) {
   const sheets = await getSheets();
   const response = await sheets.spreadsheets.values.get({
@@ -286,6 +324,7 @@ const handlers = {
   },
 
   // Create a note directly in NOTE_HISTORY
+  // New schema: TIMESTAMP | REID | PRIMARY | NOTE_TEXT | NOTE_BY | TAGGED | TO_DO_CREATED | TO_DO_ID | SOURCE
   queueNote: async (data) => {
     if (!data.payload || !data.payload.note) {
       throw new Error('Payload with note is required');
@@ -293,6 +332,8 @@ const handlers = {
 
     const now = new Date();
     const noteId = generateId('NT');
+    const noteText = data.payload.note;
+    const source = data.source || 'Dashboard';
 
     // Format timestamp as readable string for Google Sheets
     const timestamp = now.toLocaleString('en-US', {
@@ -300,23 +341,86 @@ const handlers = {
       hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
     });
 
-    // Write directly to NOTE_HISTORY sheet
-    // Columns: TIMESTAMP | REID | PRIMARY | NOTE | NOTE_ID | SOURCE
-    await appendRow(CONFIG.SHEETS.NOTE_HISTORY, 'NOTE_HISTORY!A:F', [
-      timestamp,                    // TIMESTAMP (formatted string)
-      data.reid || '',              // REID
-      data.primary || '',           // PRIMARY
-      data.payload.note,            // NOTE
-      noteId,                       // NOTE_ID
-      'Dashboard'                   // SOURCE
+    // Parse tagged users from note text
+    const taggedUsers = parseTaggedUsers(noteText);
+    const hasTagged = taggedUsers.length > 0;
+
+    // Detect who wrote the note
+    const noteBy = detectNoteAuthor(data);
+
+    // If users are tagged, create to-dos for each
+    const todoIds = [];
+    if (hasTagged) {
+      for (const assignee of taggedUsers) {
+        const todoId = generateId('TD');
+        todoIds.push(todoId);
+
+        // Get TO_DO_MASTER headers
+        const rows = await getSheetData(CONFIG.SHEETS.PME, `${CONFIG.TABS.TO_DO_MASTER}!1:1`);
+        if (rows.length) {
+          const headers = rows[0].map(normalizeHeader);
+          const headerMap = {};
+          headers.forEach((h, i) => {
+            if (h) headerMap[h.toUpperCase().replace(/\s+/g, '_')] = i;
+          });
+
+          // Build row array matching TO_DO_MASTER structure
+          const newRow = new Array(headers.length).fill('');
+
+          const setCol = (colNames, value) => {
+            const names = Array.isArray(colNames) ? colNames : [colNames];
+            for (const colName of names) {
+              const key = colName.toUpperCase().replace(/\s+/g, '_');
+              if (headerMap[key] !== undefined) {
+                newRow[headerMap[key]] = value;
+                return;
+              }
+            }
+          };
+
+          // Set all fields for the to-do
+          setCol(['TO_DO_ID', 'TODO_ID'], todoId);
+          setCol(['REID'], data.reid || '');
+          setCol(['PRIMARY'], data.primary || '');
+          setCol(['ACTION'], noteText); // Use full note as action
+          setCol(['ASSIGNED_TO', 'WHO'], assignee);
+          setCol(['TO_DO_STATUS', 'STATUS'], 'OPEN');
+          setCol(['CREATED_DATE/TIME', 'CREATED', 'CREATED_DATETIME'], timestamp);
+          setCol(['CREATED_BY', 'CREATEDBY'], noteBy);
+          setCol(['TRIGGER_TYPE'], 'NOTE_TAG');
+          setCol(['SOURCE_STATUS'], '');
+          setCol(['NOTES'], `Auto-created from note ${noteId}`);
+
+          await appendRow(CONFIG.SHEETS.PME, `${CONFIG.TABS.TO_DO_MASTER}!A:Z`, newRow);
+          console.log('To-do created from note tag:', { todoId, assignee, noteId });
+        }
+      }
+    }
+
+    // Write to NOTE_HISTORY with new schema
+    // Columns: TIMESTAMP | REID | PRIMARY | NOTE_TEXT | NOTE_BY | TAGGED | TO_DO_CREATED | TO_DO_ID | SOURCE
+    await appendRow(CONFIG.SHEETS.NOTE_HISTORY, 'NOTE_HISTORY!A:I', [
+      timestamp,                          // A: TIMESTAMP
+      data.reid || '',                    // B: REID
+      data.primary || '',                 // C: PRIMARY
+      noteText,                           // D: NOTE_TEXT
+      noteBy,                             // E: NOTE_BY
+      taggedUsers.join(', '),             // F: TAGGED (comma-separated)
+      hasTagged ? 'TRUE' : 'FALSE',       // G: TO_DO_CREATED
+      todoIds.join(', '),                 // H: TO_DO_ID (comma-separated if multiple)
+      source                              // I: SOURCE
     ]);
 
-    console.log('Note saved:', { noteId, reid: data.reid, timestamp });
+    console.log('Note saved:', { noteId, reid: data.reid, tagged: taggedUsers, todoCreated: hasTagged });
 
     return {
       success: true,
       noteId,
-      message: 'Note saved successfully',
+      todoIds: todoIds.length > 0 ? todoIds : null,
+      tagged: taggedUsers,
+      message: hasTagged
+        ? `Note saved & ${todoIds.length} to-do(s) created for: ${taggedUsers.join(', ')}`
+        : 'Note saved successfully',
       timestamp: now.toISOString()
     };
   },
@@ -481,8 +585,9 @@ const handlers = {
   },
 
   // Get note history for a property or all
+  // New schema: TIMESTAMP | REID | PRIMARY | NOTE_TEXT | NOTE_BY | TAGGED | TO_DO_CREATED | TO_DO_ID | SOURCE
   getNoteHistory: async (data) => {
-    const rows = await getSheetData(CONFIG.SHEETS.NOTE_HISTORY, 'NOTE_HISTORY!A:F');
+    const rows = await getSheetData(CONFIG.SHEETS.NOTE_HISTORY, 'NOTE_HISTORY!A:I');
 
     // Handle empty sheet or just headers
     if (rows.length < 1) {
@@ -514,17 +619,19 @@ const handlers = {
       const row = rows[i];
       if (!row || row.length === 0) continue;
 
-      // Use header positions if available, otherwise use fixed positions
-      // Expected columns: A=TIMESTAMP, B=REID, C=PRIMARY, D=NOTE, E=NOTE_ID, F=SOURCE
+      // New column positions: A=TIMESTAMP, B=REID, C=PRIMARY, D=NOTE_TEXT, E=NOTE_BY, F=TAGGED, G=TO_DO_CREATED, H=TO_DO_ID, I=SOURCE
       const timestamp = row[headerMap['TIMESTAMP'] ?? 0] || '';
       const rowReid = row[headerMap['REID'] ?? 1] || '';
       const primary = row[headerMap['PRIMARY'] ?? 2] || '';
-      const note = row[headerMap['NOTE'] ?? 3] || '';
-      const noteId = row[headerMap['NOTE_ID'] ?? headerMap['QUEUE_ID'] ?? 4] || '';
-      const source = row[headerMap['SOURCE'] ?? 5] || '';
+      const noteText = row[headerMap['NOTE_TEXT'] ?? headerMap['NOTE'] ?? 3] || '';
+      const noteBy = row[headerMap['NOTE_BY'] ?? 4] || '';
+      const tagged = row[headerMap['TAGGED'] ?? 5] || '';
+      const todoCreated = row[headerMap['TO_DO_CREATED'] ?? 6] || '';
+      const todoId = row[headerMap['TO_DO_ID'] ?? 7] || '';
+      const source = row[headerMap['SOURCE'] ?? 8] || '';
 
       // Skip if no note content
-      if (!note && !timestamp) continue;
+      if (!noteText && !timestamp) continue;
 
       if (reidFilter && rowReid !== reidFilter) continue;
 
@@ -532,8 +639,11 @@ const handlers = {
         timestamp,
         reid: rowReid,
         primary,
-        note,
-        noteId,
+        note: noteText,
+        noteBy: noteBy || 'Unknown',
+        tagged: tagged ? tagged.split(',').map(t => t.trim()) : [],
+        todoCreated: todoCreated === 'TRUE',
+        todoId,
         source: source || 'Dashboard'
       });
     }
