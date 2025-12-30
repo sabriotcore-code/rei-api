@@ -29,7 +29,8 @@ app.use(express.json());
 const CONFIG = {
   SHEETS: {
     PME: '1AlnsbdcNAPK1pCCa_WQnlBicZ-jKl8fFSXSgn5eSOhg',
-    WORKFLOW_PROCESSOR: '1MBGcdzYKcE_5VVk07b1iwlhXN0JDqSWv4o-fG29Ie7E'
+    WORKFLOW_PROCESSOR: '1MBGcdzYKcE_5VVk07b1iwlhXN0JDqSWv4o-fG29Ie7E',
+    NOTE_HISTORY: '1r4kwssjJNG1j7mpU6ktuVxIFfhTknO86XnNsVm2dQ-g'
   },
   TABS: {
     MAIN: 'MAIN',
@@ -182,32 +183,62 @@ const handlers = {
     };
   },
 
-  // Queue a new to-do
+  // Create a new to-do directly in TO_DO_MASTER
   queueTodo: async (data) => {
     if (!data.payload || !data.payload.action) {
       throw new Error('Payload with action is required');
     }
 
     const todoId = generateId('TD');
-    const now = new Date().toISOString();
+    const now = new Date();
 
-    // Add to QUEUE sheet for processing
-    await appendRow(CONFIG.SHEETS.WORKFLOW_PROCESSOR, `${CONFIG.TABS.QUEUE}!A:L`, [
-      generateId('WQ'),           // QUEUE_ID
-      now,                        // QUEUED_AT
-      'TODO_CREATE',              // WORK_TYPE
-      data.reid || '',            // REID
-      data.primary || '',         // PRIMARY
-      JSON.stringify(data.payload), // PAYLOAD
-      'PENDING',                  // STATUS
-      '', '', '', '', 0           // STARTED_AT, COMPLETED_AT, RESULT, ERROR, RETRY_COUNT
-    ]);
+    // Get TO_DO_MASTER headers to match column structure
+    const rows = await getSheetData(CONFIG.SHEETS.PME, `${CONFIG.TABS.TO_DO_MASTER}!1:1`);
+    if (!rows.length) throw new Error('Could not read TO_DO_MASTER headers');
+
+    const headers = rows[0].map(normalizeHeader);
+    const headerMap = {};
+    headers.forEach((h, i) => {
+      if (h) headerMap[h.toUpperCase().replace(/\s+/g, '_')] = i;
+    });
+
+    // Build row array matching TO_DO_MASTER structure
+    const newRow = new Array(headers.length).fill('');
+
+    // Helper to set column value
+    const setCol = (colNames, value) => {
+      const names = Array.isArray(colNames) ? colNames : [colNames];
+      for (const colName of names) {
+        const key = colName.toUpperCase().replace(/\s+/g, '_');
+        if (headerMap[key] !== undefined) {
+          newRow[headerMap[key]] = value;
+          return;
+        }
+      }
+    };
+
+    // Set all fields
+    setCol(['TO_DO_ID', 'TODO_ID'], todoId);
+    setCol(['REID'], data.reid || '');
+    setCol(['PRIMARY'], data.primary || '');
+    setCol(['ACTION'], data.payload.action || '');
+    setCol(['ASSIGNED_TO', 'WHO'], data.payload.who || 'Matt');
+    setCol(['TO_DO_STATUS', 'STATUS'], 'OPEN');
+    setCol(['CREATED_DATE/TIME', 'CREATED', 'CREATED_DATETIME'], now);
+    setCol(['CREATED_BY', 'CREATEDBY'], 'Dashboard');
+    setCol(['TRIGGER_TYPE'], 'MANUAL');
+    setCol(['SOURCE_STATUS'], data.payload.sourceStatus || '');
+    setCol(['DUE_DATE', 'DUEDATE'], data.payload.dueDate || '');
+    setCol(['NOTES'], data.payload.notes || '');
+
+    // Append directly to TO_DO_MASTER
+    await appendRow(CONFIG.SHEETS.PME, `${CONFIG.TABS.TO_DO_MASTER}!A:Z`, newRow);
 
     return {
       success: true,
       todoId,
-      message: 'To-do queued for processing',
-      timestamp: now
+      message: 'To-do created successfully',
+      timestamp: now.toISOString()
     };
   },
 
@@ -254,29 +285,30 @@ const handlers = {
     };
   },
 
-  // Queue a note
+  // Create a note directly in NOTE_HISTORY
   queueNote: async (data) => {
     if (!data.payload || !data.payload.note) {
       throw new Error('Payload with note is required');
     }
 
-    const now = new Date().toISOString();
+    const now = new Date();
+    const noteId = generateId('NT');
 
-    await appendRow(CONFIG.SHEETS.WORKFLOW_PROCESSOR, `${CONFIG.TABS.QUEUE}!A:L`, [
-      generateId('WQ'),
-      now,
-      'NOTE_TRANSFER',
-      data.reid || '',
-      data.primary || '',
-      JSON.stringify(data.payload),
-      'PENDING',
-      '', '', '', '', 0
+    // Write directly to NOTE_HISTORY sheet
+    await appendRow(CONFIG.SHEETS.NOTE_HISTORY, 'Sheet1!A:F', [
+      now,                          // TIMESTAMP
+      data.reid || '',              // REID
+      data.primary || '',           // PRIMARY
+      data.payload.note,            // NOTE
+      noteId,                       // NOTE_ID (was QUEUE_ID)
+      'Dashboard'                   // SOURCE
     ]);
 
     return {
       success: true,
-      message: 'Note queued for processing',
-      timestamp: now
+      noteId,
+      message: 'Note saved successfully',
+      timestamp: now.toISOString()
     };
   },
 
