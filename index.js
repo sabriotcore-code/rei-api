@@ -260,19 +260,20 @@ const handlers = {
     const rows = await getSheetData(CONFIG.SHEETS.PME, `${CONFIG.TABS.TO_DO_MASTER}!A:Z`);
 
     if (rows.length < 2) {
-      return { success: true, todos: [], count: 0 };
+      return { success: true, todos: [], count: 0, activeCount: 0, futureCount: 0, completedCount: 0 };
     }
 
     const headers = rows[0].map(normalizeHeader);
     const headerMap = {};
     headers.forEach((h, i) => { if (h) headerMap[h.toUpperCase().replace(/\s+/g, '_')] = i; });
 
-    const todos = [];
+    const allTodos = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const sevenDaysOut = new Date(today);
     sevenDaysOut.setDate(sevenDaysOut.getDate() + 7);
 
+    // First pass: collect ALL todos for this property to get accurate counts
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
       const rowReid = row[headerMap['REID']] || '';
@@ -282,9 +283,6 @@ const handlers = {
 
       const status = String(row[headerMap['TO_DO_STATUS']] || row[headerMap['STATUS']] || 'OPEN').toUpperCase();
       const isCompleted = status === 'DONE' || status === 'COMPLETED' || status === 'CLOSED';
-
-      // Skip completed unless includeCompleted
-      if (isCompleted && !includeCompleted) continue;
 
       const dueDateStr = row[headerMap['DUE_DATE']] || row[headerMap['DUEDATE']] || '';
       let dueDate = null;
@@ -297,13 +295,10 @@ const handlers = {
         }
       }
 
-      // Skip future unless includeFuture
-      if (isFuture && !includeFuture && !isCompleted) continue;
-
       const assignee = row[headerMap['ASSIGNED_TO']] || row[headerMap['WHO']] || 'Unassigned';
       const createdDate = row[headerMap['CREATED_DATE/TIME']] || row[headerMap['CREATED']] || '';
 
-      todos.push({
+      allTodos.push({
         rowIndex: i + 1,
         todoId: row[headerMap['TO_DO_ID']] || row[headerMap['TODO_ID']] || '',
         reid: rowReid,
@@ -313,7 +308,7 @@ const handlers = {
         status: status,
         createdDate: createdDate,
         dueDate: dueDateStr,
-        isFuture,
+        isFuture: isFuture && !isCompleted, // Only mark as future if not completed
         isCompleted,
         sourceStatus: row[headerMap['SOURCE_STATUS']] || '',
         linkedNoteId: row[headerMap['LINKED_NOTE_ID']] || '',
@@ -323,8 +318,27 @@ const handlers = {
       });
     }
 
+    // Calculate counts from ALL todos (before filtering)
+    const activeCount = allTodos.filter(t => !t.isCompleted && !t.isFuture).length;
+    const futureCount = allTodos.filter(t => !t.isCompleted && t.isFuture).length;
+    const completedCount = allTodos.filter(t => t.isCompleted).length;
+
+    // Second pass: filter based on user preferences
+    let filteredTodos = allTodos.filter(t => {
+      // Always include active (not completed, not future)
+      if (!t.isCompleted && !t.isFuture) return true;
+
+      // Include future if toggle is on
+      if (t.isFuture && !t.isCompleted && includeFuture) return true;
+
+      // Include completed if toggle is on
+      if (t.isCompleted && includeCompleted) return true;
+
+      return false;
+    });
+
     // Sort: overdue first, then by due date, then by created date
-    todos.sort((a, b) => {
+    filteredTodos.sort((a, b) => {
       // Completed always last
       if (a.isCompleted && !b.isCompleted) return 1;
       if (!a.isCompleted && b.isCompleted) return -1;
@@ -341,8 +355,11 @@ const handlers = {
 
     return {
       success: true,
-      todos,
-      count: todos.length,
+      todos: filteredTodos,
+      count: filteredTodos.length,
+      activeCount,
+      futureCount,
+      completedCount,
       timestamp: new Date().toISOString()
     };
   },
@@ -634,6 +651,7 @@ const handlers = {
   getActivityHistory: async (data) => {
     const { reid, limit = 50 } = data;
     const activities = [];
+    const now = new Date();
 
     // 1. Get Notes
     try {
@@ -720,7 +738,7 @@ const handlers = {
       console.log('Error reading to-dos:', err.message);
     }
 
-    // 3. Get Messages (if MESSAGE_LOG exists)
+    // 3. Get Messages (if MESSAGE_LOG exists) - FILTER OUT FUTURE SCHEDULED
     try {
       const msgRows = await getSheetData(CONFIG.SHEETS.NOTE_HISTORY, `${CONFIG.TABS.MESSAGE_LOG}!A:I`);
       if (msgRows.length > 0) {
@@ -734,6 +752,18 @@ const handlers = {
           const rowReid = row[2] || ''; // C: REID
           if (reid && rowReid !== reid) continue;
 
+          const msgStatus = row[7] || '';       // H: STATUS
+          const scheduledDate = row[6] || '';   // G: SCHEDULED_DATE
+
+          // FILTER OUT: Messages with SCHEDULED status and future scheduledDate
+          if (msgStatus === 'SCHEDULED' && scheduledDate) {
+            const schedDate = new Date(scheduledDate);
+            if (!isNaN(schedDate.getTime()) && schedDate > now) {
+              // Future scheduled message - don't show in history
+              continue;
+            }
+          }
+
           activities.push({
             type: 'message',
             messageId: row[0] || '',        // A: MESSAGE_ID
@@ -742,8 +772,8 @@ const handlers = {
             recipients: row[3] || '',       // D: RECIPIENTS
             channel: row[4] || '',          // E: CHANNEL
             content: row[5] || '',          // F: CONTENT
-            scheduledDate: row[6] || '',    // G: SCHEDULED_DATE
-            status: row[7] || '',           // H: STATUS
+            scheduledDate: scheduledDate,
+            status: msgStatus,
             actor: row[8] || 'System'       // I: SENT_BY
           });
         }
