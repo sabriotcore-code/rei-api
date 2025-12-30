@@ -294,15 +294,24 @@ const handlers = {
     const now = new Date();
     const noteId = generateId('NT');
 
+    // Format timestamp as readable string for Google Sheets
+    const timestamp = now.toLocaleString('en-US', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    });
+
     // Write directly to NOTE_HISTORY sheet
+    // Columns: TIMESTAMP | REID | PRIMARY | NOTE | NOTE_ID | SOURCE
     await appendRow(CONFIG.SHEETS.NOTE_HISTORY, 'NOTE_HISTORY!A:F', [
-      now,                          // TIMESTAMP
+      timestamp,                    // TIMESTAMP (formatted string)
       data.reid || '',              // REID
       data.primary || '',           // PRIMARY
       data.payload.note,            // NOTE
-      noteId,                       // NOTE_ID (was QUEUE_ID)
+      noteId,                       // NOTE_ID
       'Dashboard'                   // SOURCE
     ]);
+
+    console.log('Note saved:', { noteId, reid: data.reid, timestamp });
 
     return {
       success: true,
@@ -474,32 +483,58 @@ const handlers = {
   // Get note history for a property or all
   getNoteHistory: async (data) => {
     const rows = await getSheetData(CONFIG.SHEETS.NOTE_HISTORY, 'NOTE_HISTORY!A:F');
-    if (rows.length < 2) {
+
+    // Handle empty sheet or just headers
+    if (rows.length < 1) {
       return { success: true, notes: [], count: 0 };
     }
 
-    const headers = rows[0].map(normalizeHeader);
+    // Check if first row is headers or data
+    const firstRow = rows[0];
+    const hasHeaders = firstRow && firstRow[0] &&
+      String(firstRow[0]).toUpperCase().includes('TIMESTAMP');
+
+    let dataStartIdx = hasHeaders ? 1 : 0;
+
+    // Build header map if headers exist
     const headerMap = {};
-    headers.forEach((h, i) => { if (h) headerMap[h.toUpperCase().replace(/\s+/g, '_')] = i; });
+    if (hasHeaders) {
+      const headers = firstRow.map(normalizeHeader);
+      headers.forEach((h, i) => {
+        if (h) headerMap[h.toUpperCase().replace(/\s+/g, '_')] = i;
+      });
+    }
 
     const notes = [];
     const reidFilter = data.reid ? data.reid : null;
     const limit = data.limit || 100;
 
     // Process from bottom (newest) to top (oldest)
-    for (let i = rows.length - 1; i >= 1 && notes.length < limit; i--) {
+    for (let i = rows.length - 1; i >= dataStartIdx && notes.length < limit; i--) {
       const row = rows[i];
-      const rowReid = row[headerMap['REID']] || row[1] || '';
+      if (!row || row.length === 0) continue;
+
+      // Use header positions if available, otherwise use fixed positions
+      // Expected columns: A=TIMESTAMP, B=REID, C=PRIMARY, D=NOTE, E=NOTE_ID, F=SOURCE
+      const timestamp = row[headerMap['TIMESTAMP'] ?? 0] || '';
+      const rowReid = row[headerMap['REID'] ?? 1] || '';
+      const primary = row[headerMap['PRIMARY'] ?? 2] || '';
+      const note = row[headerMap['NOTE'] ?? 3] || '';
+      const noteId = row[headerMap['NOTE_ID'] ?? headerMap['QUEUE_ID'] ?? 4] || '';
+      const source = row[headerMap['SOURCE'] ?? 5] || '';
+
+      // Skip if no note content
+      if (!note && !timestamp) continue;
 
       if (reidFilter && rowReid !== reidFilter) continue;
 
       notes.push({
-        timestamp: row[headerMap['TIMESTAMP']] || row[0] || '',
+        timestamp,
         reid: rowReid,
-        primary: row[headerMap['PRIMARY']] || row[2] || '',
-        note: row[headerMap['NOTE']] || row[3] || '',
-        noteId: row[headerMap['NOTE_ID']] || row[headerMap['QUEUE_ID']] || row[4] || '',
-        source: row[headerMap['SOURCE']] || row[5] || ''
+        primary,
+        note,
+        noteId,
+        source: source || 'Dashboard'
       });
     }
 
