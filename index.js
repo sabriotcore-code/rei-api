@@ -295,7 +295,7 @@ const handlers = {
     const noteId = generateId('NT');
 
     // Write directly to NOTE_HISTORY sheet
-    await appendRow(CONFIG.SHEETS.NOTE_HISTORY, 'Sheet1!A:F', [
+    await appendRow(CONFIG.SHEETS.NOTE_HISTORY, 'NOTE_HISTORY!A:F', [
       now,                          // TIMESTAMP
       data.reid || '',              // REID
       data.primary || '',           // PRIMARY
