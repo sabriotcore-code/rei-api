@@ -54,6 +54,147 @@ const CONFIG = {
 };
 
 // ============================================================================
+// PME DATA CACHE (5-minute refresh)
+// ============================================================================
+
+const pmeCache = {
+  mainData: null,
+  headers: null,
+  headerMap: null,
+  aggregates: null,
+  lastRefresh: null,
+  TTL_MS: 5 * 60 * 1000  // 5 minutes
+};
+
+function isCacheValid() {
+  return pmeCache.mainData && pmeCache.lastRefresh &&
+         (Date.now() - pmeCache.lastRefresh < pmeCache.TTL_MS);
+}
+
+async function refreshPMECache() {
+  console.log('Refreshing PME cache...');
+  const startTime = Date.now();
+
+  try {
+    const sheets = await getSheets();
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: CONFIG.SHEETS.PME,
+      range: `${CONFIG.TABS.MAIN}!A:ZZ`
+    });
+
+    const rows = response.data.values || [];
+    if (rows.length < 2) {
+      console.log('PME cache: No data found');
+      return;
+    }
+
+    // Process headers
+    const headers = rows[0].map(h => h ? String(h).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim() : '');
+    const headerMap = {};
+    headers.forEach((h, i) => {
+      if (h) headerMap[h.toUpperCase().replace(/\s+/g, '_')] = i;
+    });
+
+    // Calculate aggregates
+    const aggregates = calculateAggregates(rows, headerMap);
+
+    // Store in cache
+    pmeCache.mainData = rows;
+    pmeCache.headers = headers;
+    pmeCache.headerMap = headerMap;
+    pmeCache.aggregates = aggregates;
+    pmeCache.lastRefresh = Date.now();
+
+    console.log(`PME cache refreshed in ${Date.now() - startTime}ms (${rows.length} rows, ${Object.keys(aggregates).length} aggregates)`);
+  } catch (err) {
+    console.error('PME cache refresh error:', err.message);
+  }
+}
+
+function calculateAggregates(rows, headerMap) {
+  const aggregates = {
+    propertyCount: rows.length - 1,
+    grossRcptsTotal: 0,
+    grossRcptsCount: 0,
+    rentTotal: 0,
+    rentCount: 0,
+    loanTotal: 0,
+    taxTotal: 0,
+    statusCounts: {},
+    cityStats: {},
+    entityStats: {}
+  };
+
+  // Column mappings
+  const grossRcptsCol = headerMap['GROSS_RCPTS'] || headerMap['GROSS_RECEIPTS'] || headerMap['GROSSRCPTS'];
+  const rentCol = headerMap['RENT'] || headerMap['CURRENT_RENT'] || headerMap['MONTHLY_RENT'];
+  const loanCol = headerMap['LOAN_BALANCE'] || headerMap['LOAN'] || headerMap['LOAN_BAL'];
+  const taxCol = headerMap['TAX'] || headerMap['PROPERTY_TAX'] || headerMap['TAXES'];
+  const statusCol = headerMap['STATUS'];
+  const cityCol = headerMap['CITY'];
+  const entityCol = headerMap['ENTITY'] || headerMap['OWNER'] || headerMap['OWNERSHIP'];
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+
+    // GROSS RCPTS
+    if (grossRcptsCol !== undefined) {
+      const val = parseFloat(String(row[grossRcptsCol] || '0').replace(/[,$]/g, ''));
+      if (!isNaN(val)) {
+        aggregates.grossRcptsTotal += val;
+        if (val > 0) aggregates.grossRcptsCount++;
+      }
+    }
+
+    // RENT
+    if (rentCol !== undefined) {
+      const val = parseFloat(String(row[rentCol] || '0').replace(/[,$]/g, ''));
+      if (!isNaN(val)) {
+        aggregates.rentTotal += val;
+        if (val > 0) aggregates.rentCount++;
+      }
+    }
+
+    // LOAN
+    if (loanCol !== undefined) {
+      const val = parseFloat(String(row[loanCol] || '0').replace(/[,$]/g, ''));
+      if (!isNaN(val)) aggregates.loanTotal += val;
+    }
+
+    // TAX
+    if (taxCol !== undefined) {
+      const val = parseFloat(String(row[taxCol] || '0').replace(/[,$]/g, ''));
+      if (!isNaN(val)) aggregates.taxTotal += val;
+    }
+
+    // STATUS counts
+    if (statusCol !== undefined) {
+      const status = String(row[statusCol] || 'Unknown').trim();
+      aggregates.statusCounts[status] = (aggregates.statusCounts[status] || 0) + 1;
+    }
+
+    // CITY stats
+    if (cityCol !== undefined) {
+      const city = String(row[cityCol] || 'Unknown').trim();
+      aggregates.cityStats[city] = (aggregates.cityStats[city] || 0) + 1;
+    }
+
+    // ENTITY stats
+    if (entityCol !== undefined) {
+      const entity = String(row[entityCol] || 'Unknown').trim();
+      aggregates.entityStats[entity] = (aggregates.entityStats[entity] || 0) + 1;
+    }
+  }
+
+  return aggregates;
+}
+
+// Auto-refresh cache on startup and every 5 minutes
+setInterval(() => {
+  refreshPMECache().catch(err => console.error('Cache auto-refresh failed:', err.message));
+}, 5 * 60 * 1000);
+
+// ============================================================================
 // GOOGLE SHEETS AUTH
 // ============================================================================
 
@@ -1176,8 +1317,109 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'rei-api',
-    version: '2.0.0',
+    version: '2.1.0',
+    cacheStatus: isCacheValid() ? 'valid' : 'stale',
+    cacheAge: pmeCache.lastRefresh ? Math.round((Date.now() - pmeCache.lastRefresh) / 1000) + 's' : 'never',
     timestamp: new Date().toISOString()
+  });
+});
+
+// ============================================================================
+// FAST AGGREGATION ENDPOINTS (cached, ~5ms response)
+// ============================================================================
+
+// Get all aggregates instantly from cache
+app.get('/aggregates', async (req, res) => {
+  const startTime = Date.now();
+
+  if (!isCacheValid()) {
+    await refreshPMECache();
+  }
+
+  if (!pmeCache.aggregates) {
+    return res.status(503).json({ error: 'Cache not ready', cached: false });
+  }
+
+  res.json({
+    ...pmeCache.aggregates,
+    cached: true,
+    cacheAge: Math.round((Date.now() - pmeCache.lastRefresh) / 1000),
+    latencyMs: Date.now() - startTime
+  });
+});
+
+// Fast GROSS RCPTS total
+app.get('/aggregates/gross-rcpts', async (req, res) => {
+  const startTime = Date.now();
+
+  if (!isCacheValid()) {
+    await refreshPMECache();
+  }
+
+  if (!pmeCache.aggregates) {
+    return res.status(503).json({ error: 'Cache not ready' });
+  }
+
+  res.json({
+    total: pmeCache.aggregates.grossRcptsTotal,
+    count: pmeCache.aggregates.grossRcptsCount,
+    formatted: '$' + pmeCache.aggregates.grossRcptsTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }),
+    cached: true,
+    latencyMs: Date.now() - startTime
+  });
+});
+
+// Fast rent total
+app.get('/aggregates/rent', async (req, res) => {
+  const startTime = Date.now();
+
+  if (!isCacheValid()) {
+    await refreshPMECache();
+  }
+
+  if (!pmeCache.aggregates) {
+    return res.status(503).json({ error: 'Cache not ready' });
+  }
+
+  res.json({
+    total: pmeCache.aggregates.rentTotal,
+    count: pmeCache.aggregates.rentCount,
+    formatted: '$' + pmeCache.aggregates.rentTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }),
+    cached: true,
+    latencyMs: Date.now() - startTime
+  });
+});
+
+// Property counts by status
+app.get('/aggregates/status', async (req, res) => {
+  const startTime = Date.now();
+
+  if (!isCacheValid()) {
+    await refreshPMECache();
+  }
+
+  if (!pmeCache.aggregates) {
+    return res.status(503).json({ error: 'Cache not ready' });
+  }
+
+  res.json({
+    statusCounts: pmeCache.aggregates.statusCounts,
+    total: pmeCache.aggregates.propertyCount,
+    cached: true,
+    latencyMs: Date.now() - startTime
+  });
+});
+
+// Force cache refresh
+app.post('/cache/refresh', async (req, res) => {
+  const startTime = Date.now();
+  await refreshPMECache();
+
+  res.json({
+    success: true,
+    refreshed: true,
+    latencyMs: Date.now() - startTime,
+    propertyCount: pmeCache.aggregates?.propertyCount || 0
   });
 });
 
@@ -1191,7 +1433,14 @@ functions.http('api', app);
 // Start server (Railway and local dev)
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`REI API v2.0.0 running on port ${PORT}`);
+  console.log(`REI API v2.1.0 running on port ${PORT}`);
+
+  // Initialize cache on startup
+  refreshPMECache().then(() => {
+    console.log('PME cache initialized on startup');
+  }).catch(err => {
+    console.error('Failed to initialize PME cache:', err.message);
+  });
 });
 
 module.exports = { app };
