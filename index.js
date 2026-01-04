@@ -41,7 +41,8 @@ const CONFIG = {
   SHEETS: {
     PME: '1AlnsbdcNAPK1pCCa_WQnlBicZ-jKl8fFSXSgn5eSOhg',
     WORKFLOW_PROCESSOR: '1MBGcdzYKcE_5VVk07b1iwlhXN0JDqSWv4o-fG29Ie7E',
-    NOTE_HISTORY: '1r4kwssjJNG1j7mpU6ktuVxIFfhTknO86XnNsVm2dQ-g'
+    NOTE_HISTORY: '1r4kwssjJNG1j7mpU6ktuVxIFfhTknO86XnNsVm2dQ-g',
+    PRODUCTION_SYNC: '1OkdwRL0eO2YKbVOJ9P0Z4ANGrKbyiBSJoRHFK0iVwrI'
   },
   TABS: {
     MAIN: 'MAIN',
@@ -194,6 +195,202 @@ setInterval(() => {
   refreshPMECache().catch(err => console.error('Cache auto-refresh failed:', err.message));
 }, 5 * 60 * 1000);
 
+// Auto-run production sync every 30 minutes
+setInterval(() => {
+  console.log('Auto-trigger: Running production sync...');
+  runProductionSync(false)
+    .then(result => {
+      if (result.skipped) {
+        console.log('Auto-sync skipped (no B1 change)');
+      } else if (result.success) {
+        console.log('Auto-sync completed:', result);
+      } else {
+        console.error('Auto-sync failed:', result.error);
+      }
+    })
+    .catch(err => console.error('Auto-sync error:', err.message));
+}, 30 * 60 * 1000); // 30 minutes
+
+// ============================================================================
+// PRODUCTION SYNC CACHE (tracks last B1 value)
+// ============================================================================
+
+const productionSyncCache = {
+  lastB1Value: null,
+  lastSyncTime: null
+};
+
+/**
+ * Run production sync - copies data from external sheets to REI_PRODUCTION/ULTRA_PRODUCTION
+ */
+async function runProductionSync(force = false) {
+  console.log('=== Starting production sync ===');
+  const sheets = await getSheets();
+
+  try {
+    // Get VAR!B1 value
+    const varResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: CONFIG.SHEETS.PRODUCTION_SYNC,
+      range: 'VAR!B1'
+    });
+
+    const currentB1 = varResponse.data.values?.[0]?.[0] || '';
+    const currentB1Str = currentB1 ? String(currentB1) : '';
+
+    console.log('Current VAR!B1:', currentB1Str);
+    console.log('Last B1 value:', productionSyncCache.lastB1Value);
+
+    // Check if B1 changed (skip if same unless forced)
+    if (!force && currentB1Str === productionSyncCache.lastB1Value) {
+      console.log('VAR!B1 unchanged, skipping sync');
+      return {
+        success: true,
+        skipped: true,
+        reason: 'No change in VAR!B1',
+        lastValue: currentB1Str
+      };
+    }
+
+    // Parse target date
+    let targetDate;
+    if (currentB1 instanceof Date) {
+      targetDate = currentB1;
+    } else {
+      targetDate = new Date(currentB1);
+    }
+
+    if (isNaN(targetDate.getTime())) {
+      return { success: false, error: 'Invalid date in VAR!B1: ' + currentB1Str };
+    }
+
+    console.log('Target date:', targetDate.toISOString());
+
+    // Process both tabs
+    const reiResult = await syncProductionTab(sheets, 'REI', 'REI_PRODUCTION', targetDate);
+    const ultraResult = await syncProductionTab(sheets, 'ULTRA', 'ULTRA_PRODUCTION', targetDate);
+
+    // Update cache
+    productionSyncCache.lastB1Value = currentB1Str;
+    productionSyncCache.lastSyncTime = new Date().toISOString();
+
+    console.log('=== Production sync completed ===');
+
+    return {
+      success: true,
+      targetDate: targetDate.toISOString(),
+      rei: reiResult,
+      ultra: ultraResult,
+      timestamp: productionSyncCache.lastSyncTime
+    };
+
+  } catch (error) {
+    console.error('Production sync error:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Sync a single tab pair (source -> production)
+ */
+async function syncProductionTab(sheets, sourceTabName, targetTabName, targetDate) {
+  try {
+    console.log(`Processing ${sourceTabName} -> ${targetTabName}`);
+
+    // Get source tab data (column A has timestamps, column F has URLs)
+    const sourceResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: CONFIG.SHEETS.PRODUCTION_SYNC,
+      range: `${sourceTabName}!A:F`
+    });
+
+    const rows = sourceResponse.data.values || [];
+    if (rows.length < 2) {
+      return { success: false, error: `No data in ${sourceTabName}` };
+    }
+
+    // Find latest row matching target date
+    const targetDateOnly = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+    let latestRow = null;
+    let latestTimestamp = null;
+
+    for (let i = 1; i < rows.length; i++) {
+      const cellValue = rows[i][0]; // Column A - timestamp
+      if (!cellValue) continue;
+
+      const cellDate = new Date(cellValue);
+      if (isNaN(cellDate.getTime())) continue;
+
+      const cellDateOnly = new Date(cellDate.getFullYear(), cellDate.getMonth(), cellDate.getDate());
+
+      if (cellDateOnly.getTime() === targetDateOnly.getTime()) {
+        if (!latestTimestamp || cellDate > latestTimestamp) {
+          latestRow = i;
+          latestTimestamp = cellDate;
+        }
+      }
+    }
+
+    if (latestRow === null) {
+      console.log(`No matching date in ${sourceTabName}`);
+      return { success: false, error: 'No matching date found' };
+    }
+
+    // Get URL from column F (index 5)
+    const url = rows[latestRow][5];
+    if (!url) {
+      return { success: false, error: `No URL in row ${latestRow + 1}` };
+    }
+
+    console.log(`Found URL in row ${latestRow + 1}: ${url}`);
+
+    // Extract sheet ID from URL
+    const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (!match) {
+      return { success: false, error: 'Invalid URL format: ' + url };
+    }
+
+    const externalSheetId = match[1];
+
+    // Copy data from external sheet
+    const externalResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: externalSheetId,
+      range: 'A:ZZ' // Get all data
+    });
+
+    const externalData = externalResponse.data.values || [];
+    if (externalData.length === 0) {
+      return { success: false, error: 'External sheet is empty' };
+    }
+
+    console.log(`Copying ${externalData.length} rows from external sheet`);
+
+    // Clear target sheet and paste data
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: CONFIG.SHEETS.PRODUCTION_SYNC,
+      range: `${targetTabName}!A:ZZ`
+    });
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: CONFIG.SHEETS.PRODUCTION_SYNC,
+      range: `${targetTabName}!A1`,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: externalData }
+    });
+
+    console.log(`SUCCESS: Pasted ${externalData.length} rows to ${targetTabName}`);
+
+    return {
+      success: true,
+      rowsCopied: externalData.length,
+      sourceRow: latestRow + 1,
+      externalSheetId
+    };
+
+  } catch (error) {
+    console.error(`Error in ${sourceTabName}:`, error.message);
+    return { success: false, error: error.message };
+  }
+}
+
 // ============================================================================
 // GOOGLE SHEETS AUTH
 // ============================================================================
@@ -327,7 +524,24 @@ async function ensureSheetHeaders(spreadsheetId, tabName, headers) {
 const handlers = {
   // Health check
   ping: async () => {
-    return { pong: true, timestamp: new Date().toISOString(), service: 'rei-api', version: '2.0.0' };
+    return { pong: true, timestamp: new Date().toISOString(), service: 'rei-api', version: '2.2.0' };
+  },
+
+  // Production sync - runs on demand or via cron
+  runProductionSync: async (data) => {
+    const force = data.force === true;
+    return await runProductionSync(force);
+  },
+
+  // Get production sync status
+  getProductionSyncStatus: async () => {
+    return {
+      success: true,
+      lastB1Value: productionSyncCache.lastB1Value,
+      lastSyncTime: productionSyncCache.lastSyncTime,
+      sheetId: CONFIG.SHEETS.PRODUCTION_SYNC,
+      timestamp: new Date().toISOString()
+    };
   },
 
   // Get all to-dos
@@ -1317,11 +1531,69 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'rei-api',
-    version: '2.1.0',
+    version: '2.2.0',
     cacheStatus: isCacheValid() ? 'valid' : 'stale',
     cacheAge: pmeCache.lastRefresh ? Math.round((Date.now() - pmeCache.lastRefresh) / 1000) + 's' : 'never',
+    productionSync: {
+      lastB1: productionSyncCache.lastB1Value,
+      lastSync: productionSyncCache.lastSyncTime
+    },
     timestamp: new Date().toISOString()
   });
+});
+
+// ============================================================================
+// PRODUCTION SYNC CRON ENDPOINT
+// ============================================================================
+
+// GET /cron/production-sync - Called every 30 minutes by external scheduler
+app.get('/cron/production-sync', async (req, res) => {
+  const startTime = Date.now();
+  console.log('Cron: Production sync triggered');
+
+  try {
+    const result = await runProductionSync(false);
+
+    res.json({
+      ...result,
+      cronTrigger: true,
+      latencyMs: Date.now() - startTime
+    });
+  } catch (error) {
+    console.error('Cron sync error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      cronTrigger: true,
+      latencyMs: Date.now() - startTime
+    });
+  }
+});
+
+// GET /cron/production-sync/force - Force sync regardless of B1 change
+app.get('/cron/production-sync/force', async (req, res) => {
+  const startTime = Date.now();
+  console.log('Cron: Force production sync triggered');
+
+  try {
+    const result = await runProductionSync(true);
+
+    res.json({
+      ...result,
+      cronTrigger: true,
+      forced: true,
+      latencyMs: Date.now() - startTime
+    });
+  } catch (error) {
+    console.error('Cron force sync error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      cronTrigger: true,
+      forced: true,
+      latencyMs: Date.now() - startTime
+    });
+  }
 });
 
 // ============================================================================
@@ -1433,7 +1705,7 @@ functions.http('api', app);
 // Start server (Railway and local dev)
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`REI API v2.1.0 running on port ${PORT}`);
+  console.log(`REI API v2.2.0 running on port ${PORT}`);
 
   // Initialize cache on startup
   refreshPMECache().then(() => {
@@ -1441,6 +1713,18 @@ app.listen(PORT, '0.0.0.0', () => {
   }).catch(err => {
     console.error('Failed to initialize PME cache:', err.message);
   });
+
+  // Run initial production sync after 10 seconds (allow auth to initialize)
+  setTimeout(() => {
+    console.log('Running initial production sync...');
+    runProductionSync(false)
+      .then(result => {
+        console.log('Initial production sync result:', result.success ? 'OK' : result.error);
+      })
+      .catch(err => {
+        console.error('Initial production sync error:', err.message);
+      });
+  }, 10000);
 });
 
 module.exports = { app };
