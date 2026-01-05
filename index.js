@@ -2374,6 +2374,33 @@ app.listen(PORT, '0.0.0.0', () => {
         console.error('Initial production sync error:', err.message);
       });
   }, 10000);
+
+  // Auto-check inbox every 5 minutes (if Gmail is configured)
+  const INBOX_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+  const autoCheckInbox = async () => {
+    if (!process.env.GMAIL_REFRESH_TOKEN) {
+      return; // Gmail not configured, skip
+    }
+
+    try {
+      console.log('Auto-checking inbox...');
+      const result = await handlers.checkInbox({ maxResults: 50 });
+      if (result.newCount > 0) {
+        console.log(`Inbox check: ${result.newCount} new emails logged to MESSAGE_LOG`);
+      } else {
+        console.log('Inbox check: No new emails');
+      }
+    } catch (err) {
+      console.error('Auto inbox check error:', err.message);
+    }
+  };
+
+  // Initial check after 30 seconds, then every 5 minutes
+  setTimeout(() => {
+    autoCheckInbox();
+    setInterval(autoCheckInbox, INBOX_CHECK_INTERVAL);
+  }, 30000);
 });
 
 module.exports = { app };
