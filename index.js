@@ -1833,6 +1833,157 @@ const handlers = {
     };
   },
 
+  // Check inbox for new emails and log to MESSAGE_LOG
+  checkInbox: async (data) => {
+    const { maxResults = 20, markAsRead = false } = data || {};
+
+    if (!process.env.GMAIL_REFRESH_TOKEN) {
+      return { success: false, error: 'Gmail not configured' };
+    }
+
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GMAIL_CLIENT_ID,
+      process.env.GMAIL_CLIENT_SECRET,
+      'https://developers.google.com/oauthplayground'
+    );
+    oauth2Client.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
+
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+
+    const listResponse = await gmail.users.messages.list({
+      userId: 'me',
+      maxResults,
+      q: 'is:inbox'
+    });
+
+    const messages = listResponse.data.messages || [];
+    if (messages.length === 0) {
+      return { success: true, emails: [], count: 0, message: 'No emails found' };
+    }
+
+    // Get PME data for property matching by email
+    let pmeData = {};
+    try {
+      const pmeRows = await getSheetData(CONFIG.SHEETS.PME, 'PME!A:BZ');
+      if (pmeRows.length > 1) {
+        const headers = pmeRows[0].map(normalizeHeader);
+        const headerMap = {};
+        headers.forEach((h, i) => { if (h) headerMap[h.toUpperCase().replace(/\s+/g, '_')] = i; });
+
+        for (let i = 1; i < pmeRows.length; i++) {
+          const row = pmeRows[i];
+          const reid = row[headerMap['REID']] || '';
+          if (!reid) continue;
+
+          const p1Email = String(row[headerMap['P1_EMAIL']] || '').toLowerCase().trim();
+          const p2Email = String(row[headerMap['P2_EMAIL']] || '').toLowerCase().trim();
+          const p3Email = String(row[headerMap['P3_EMAIL']] || '').toLowerCase().trim();
+
+          if (p1Email) pmeData[p1Email] = { reid, primary: row[headerMap['PRIMARY']] || '', contact: 'P1' };
+          if (p2Email) pmeData[p2Email] = { reid, primary: row[headerMap['PRIMARY']] || '', contact: 'P2' };
+          if (p3Email) pmeData[p3Email] = { reid, primary: row[headerMap['PRIMARY']] || '', contact: 'P3' };
+        }
+      }
+    } catch (err) {
+      console.error('Error loading PME for email matching:', err);
+    }
+
+    // Get existing message IDs to avoid duplicates
+    let existingIds = new Set();
+    try {
+      const logRows = await getSheetData(CONFIG.SHEETS.NOTE_HISTORY, `${CONFIG.TABS.MESSAGE_LOG}!A:A`);
+      for (let i = 1; i < logRows.length; i++) {
+        if (logRows[i][0]) existingIds.add(logRows[i][0]);
+      }
+    } catch (err) {
+      console.log('No existing MESSAGE_LOG or error:', err.message);
+    }
+
+    const emails = [];
+    let newCount = 0;
+
+    for (const msg of messages) {
+      const logId = `GMAIL-${msg.id}`;
+      if (existingIds.has(logId)) continue;
+
+      const detail = await gmail.users.messages.get({
+        userId: 'me',
+        id: msg.id,
+        format: 'metadata',
+        metadataHeaders: ['From', 'Subject', 'Date']
+      });
+
+      const hdrs = detail.data.payload.headers || [];
+      const getH = (name) => {
+        const h = hdrs.find(h => h.name.toLowerCase() === name.toLowerCase());
+        return h ? h.value : '';
+      };
+
+      const from = getH('From');
+      const subject = getH('Subject');
+      const date = getH('Date');
+      const isUnread = detail.data.labelIds?.includes('UNREAD');
+
+      // Extract email from "Name <email>" format
+      const emailMatch = from.match(/<([^>]+)>/) || [null, from];
+      const fromEmail = (emailMatch[1] || from).toLowerCase().trim();
+
+      // Match to property
+      const match = pmeData[fromEmail];
+      const reid = match?.reid || '';
+      const contactType = match?.contact || '';
+
+      emails.push({
+        messageId: msg.id,
+        logId,
+        from,
+        fromEmail,
+        subject,
+        date,
+        isUnread,
+        reid,
+        snippet: detail.data.snippet
+      });
+
+      // Log to MESSAGE_LOG
+      await ensureSheetHeaders(CONFIG.SHEETS.NOTE_HISTORY, CONFIG.TABS.MESSAGE_LOG,
+        ['MESSAGE_ID', 'TIMESTAMP', 'REID', 'RECIPIENTS', 'CHANNEL', 'CONTENT', 'SCHEDULED_DATE', 'STATUS', 'SENT_BY']);
+
+      const content = `From: ${from}\nSubject: ${subject}\n\n${detail.data.snippet}`;
+      await appendRow(CONFIG.SHEETS.NOTE_HISTORY, `${CONFIG.TABS.MESSAGE_LOG}!A:I`, [
+        logId,
+        formatTimestamp(new Date(date)),
+        reid,
+        fromEmail,
+        'EMAIL_INBOUND',
+        content,
+        '',
+        'RECEIVED',
+        contactType || 'Unknown'
+      ]);
+
+      newCount++;
+
+      if (markAsRead && isUnread) {
+        await gmail.users.messages.modify({
+          userId: 'me',
+          id: msg.id,
+          requestBody: { removeLabelIds: ['UNREAD'] }
+        });
+      }
+    }
+
+    console.log(`Inbox check: ${newCount} new emails logged`);
+
+    return {
+      success: true,
+      emails,
+      count: emails.length,
+      newCount,
+      timestamp: new Date().toISOString()
+    };
+  },
+
   // ============================================================================
   // FEEDBACK SYSTEM
   // ============================================================================
