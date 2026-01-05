@@ -1586,8 +1586,20 @@ const handlers = {
     // SMS sending enabled - requires manual click in dashboard
     const SMS_SENDING_ENABLED = true;
 
+    // Quo PhoneNumberIds (use env var or default to Main Line)
+    const QUO_PHONE_IDS = {
+      'main': 'PNAANanpRa',      // (501) 222-4394 - Main Line
+      'management': 'PNRvk9ByeI', // (501) 291-3308 - Management 2
+      'collections': 'PNMXrjAEec', // (501) 913-9995 - COLLECTIONS
+      'marketing': 'PNpndIvXHT',  // (501) 777-5502 - Marketing
+      'acquisitions': 'PN3z5OO3wv' // (501) 271-3211 - Acquisitions
+    };
+    const defaultFromId = process.env.QUO_FROM_ID || QUO_PHONE_IDS.management;
+
     if (SMS_SENDING_ENABLED) {
-      // Quo API call (when enabled)
+      // Quo API call - requires PhoneNumberId (PNxxxx format)
+      const fromId = from && from.startsWith('PN') ? from : defaultFromId;
+
       const quoResponse = await fetch('https://api.openphone.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -1596,7 +1608,7 @@ const handlers = {
         },
         body: JSON.stringify({
           content: content,
-          from: from || process.env.QUO_FROM_NUMBER, // Default sending number
+          from: fromId,
           to: [to]
         })
       });
@@ -1607,11 +1619,28 @@ const handlers = {
       }
 
       const result = await quoResponse.json();
+
+      // Log sent SMS to MESSAGE_LOG
+      await ensureSheetHeaders(CONFIG.SHEETS.NOTE_HISTORY, CONFIG.TABS.MESSAGE_LOG,
+        ['MESSAGE_ID', 'TIMESTAMP', 'REID', 'RECIPIENTS', 'CHANNEL', 'CONTENT', 'SCHEDULED_DATE', 'STATUS', 'SENT_BY']);
+      await appendRow(CONFIG.SHEETS.NOTE_HISTORY, `${CONFIG.TABS.MESSAGE_LOG}!A:I`, [
+        result.data?.id || generateId('SMS'),
+        formatTimestamp(new Date()),
+        reid || '',
+        to,
+        'SMS',
+        content,
+        '',
+        'SENT',
+        'Dashboard'
+      ]);
+
       return {
         success: true,
         sent: true,
         messageId: result.data?.id,
         status: 'sent',
+        from: fromId,
         to,
         timestamp: new Date().toISOString()
       };
@@ -1653,10 +1682,17 @@ const handlers = {
   getSmsConfig: async () => {
     return {
       success: true,
-      sendingEnabled: false,
+      sendingEnabled: true,
       apiConfigured: !!process.env.QUO_API_KEY,
-      fromNumber: process.env.QUO_FROM_NUMBER || 'Not configured',
-      testNumber: '+15016729023',  // 1400 W Markham St test number
+      defaultFromId: 'PNRvk9ByeI',  // Management 2
+      phoneNumbers: [
+        { id: 'PNRvk9ByeI', name: 'Management 2', number: '(501) 291-3308', default: true },
+        { id: 'PNAANanpRa', name: 'Main Line', number: '(501) 222-4394' },
+        { id: 'PNMXrjAEec', name: 'COLLECTIONS', number: '(501) 913-9995' },
+        { id: 'PNpndIvXHT', name: 'Marketing', number: '(501) 777-5502' },
+        { id: 'PN3z5OO3wv', name: 'Acquisitions', number: '(501) 271-3211' }
+      ],
+      testNumber: '+15016729023',
       testAddress: '1400 W Markham St',
       timestamp: new Date().toISOString()
     };
