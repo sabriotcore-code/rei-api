@@ -1583,8 +1583,8 @@ const handlers = {
       throw new Error('Phone number must be in E.164 format (e.g., +15016729023)');
     }
 
-    // DISABLED: Do not send SMS yet - just log and queue
-    const SMS_SENDING_ENABLED = false;
+    // SMS sending enabled - requires manual click in dashboard
+    const SMS_SENDING_ENABLED = true;
 
     if (SMS_SENDING_ENABLED) {
       // Quo API call (when enabled)
