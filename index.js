@@ -55,7 +55,8 @@ const CONFIG = {
     VAR: 'VAR',
     QUEUE: 'QUEUE',
     NOTE_HISTORY: 'NOTE_HISTORY',
-    MESSAGE_LOG: 'MESSAGE_LOG'
+    MESSAGE_LOG: 'MESSAGE_LOG',
+    FEEDBACK: 'FEEDBACK'
   }
 };
 
@@ -1837,6 +1838,43 @@ const handlers = {
       fromEmail: 'contact@rei-realty.com',
       timestamp: new Date().toISOString()
     };
+  },
+
+  // ============================================================================
+  // FEEDBACK SYSTEM
+  // ============================================================================
+
+  submitFeedback: async (data) => {
+    const { user, request } = data;
+
+    if (!user) throw new Error('User is required');
+    if (!request) throw new Error('Request/feedback is required');
+
+    const timestamp = formatTimestamp(new Date());
+    const feedbackId = generateId('FB');
+
+    // Ensure FEEDBACK tab exists
+    await ensureSheetHeaders(CONFIG.SHEETS.NOTE_HISTORY, CONFIG.TABS.FEEDBACK,
+      ['FEEDBACK_ID', 'TIMESTAMP', 'USER', 'REQUEST', 'NOTES', 'STATUS']);
+
+    // Write to FEEDBACK tab
+    await appendRow(CONFIG.SHEETS.NOTE_HISTORY, `${CONFIG.TABS.FEEDBACK}!A:F`, [
+      feedbackId,
+      timestamp,
+      user,
+      request,
+      '',  // NOTES - for admin to fill
+      'NEW'  // STATUS
+    ]);
+
+    console.log('Feedback submitted:', { feedbackId, user });
+
+    return {
+      success: true,
+      feedbackId,
+      message: 'Feedback submitted successfully',
+      timestamp: new Date().toISOString()
+    };
   }
 };
 
@@ -1898,6 +1936,78 @@ app.get('/', (req, res) => {
     },
     timestamp: new Date().toISOString()
   });
+});
+
+// ============================================================================
+// QUO/OPENPHONE WEBHOOK - INCOMING SMS
+// ============================================================================
+
+// POST /webhooks/quo - Receives incoming SMS from Quo/OpenPhone
+app.post('/webhooks/quo', async (req, res) => {
+  try {
+    const event = req.body;
+    console.log('Quo webhook received:', JSON.stringify(event).substring(0, 500));
+
+    // OpenPhone sends various event types
+    // message.received = incoming SMS
+    if (event.type === 'message.received' && event.data) {
+      const msg = event.data.object || event.data;
+      const from = msg.from;  // Sender phone number
+      const to = msg.to?.[0] || msg.phoneNumberId;  // Receiving Quo number
+      const content = msg.content || msg.body || msg.text;
+      const messageId = msg.id || generateId('INBOUND');
+
+      // Try to find the property by matching phone number
+      // First, look up in PME data for P1, P2, P3 matching the from number
+      let reid = '';
+      let primary = '';
+
+      if (pmeCache.mainData && pmeCache.headerMap) {
+        const p1Idx = pmeCache.headerMap['P1'];
+        const p2Idx = pmeCache.headerMap['P2'];
+        const p3Idx = pmeCache.headerMap['P3'];
+        const reidIdx = pmeCache.headerMap['REID'];
+        const primaryIdx = pmeCache.headerMap['PRIMARY'];
+
+        const fromDigits = from.replace(/\D/g, '').slice(-10);
+
+        for (const row of pmeCache.mainData) {
+          const p1 = (row[p1Idx] || '').replace(/\D/g, '').slice(-10);
+          const p2 = (row[p2Idx] || '').replace(/\D/g, '').slice(-10);
+          const p3 = (row[p3Idx] || '').replace(/\D/g, '').slice(-10);
+
+          if (p1 === fromDigits || p2 === fromDigits || p3 === fromDigits) {
+            reid = row[reidIdx] || '';
+            primary = row[primaryIdx] || '';
+            break;
+          }
+        }
+      }
+
+      // Log to MESSAGE_LOG
+      await ensureSheetHeaders(CONFIG.SHEETS.NOTE_HISTORY, CONFIG.TABS.MESSAGE_LOG,
+        ['MESSAGE_ID', 'TIMESTAMP', 'REID', 'RECIPIENTS', 'CHANNEL', 'CONTENT', 'SCHEDULED_DATE', 'STATUS', 'SENT_BY']);
+
+      await appendRow(CONFIG.SHEETS.NOTE_HISTORY, `${CONFIG.TABS.MESSAGE_LOG}!A:I`, [
+        messageId,
+        formatTimestamp(new Date()),
+        reid,
+        from,  // Who sent it
+        'SMS_INBOUND',
+        content,
+        '',
+        'RECEIVED',
+        `From: ${from}${primary ? ` (${primary})` : ''}`
+      ]);
+
+      console.log('Inbound SMS logged:', { messageId, from, reid, content: content?.substring(0, 50) });
+    }
+
+    res.json({ success: true, received: true });
+  } catch (err) {
+    console.error('Quo webhook error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // ============================================================================
