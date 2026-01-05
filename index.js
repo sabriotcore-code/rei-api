@@ -1950,38 +1950,73 @@ app.post('/webhooks/quo', async (req, res) => {
 
     // OpenPhone sends various event types
     // message.received = incoming SMS
-    if (event.type === 'message.received' && event.data) {
-      const msg = event.data.object || event.data;
-      const from = msg.from;  // Sender phone number
-      const to = msg.to?.[0] || msg.phoneNumberId;  // Receiving Quo number
-      const content = msg.content || msg.body || msg.text;
-      const messageId = msg.id || generateId('INBOUND');
+    // Also handle the object directly if type is not at top level
+    const eventType = event.type || event.object?.type || (event.data ? 'message.received' : null);
+
+    if ((eventType === 'message.received' || eventType === 'message.delivered') && (event.data || event.object)) {
+      const msg = event.data?.object || event.data || event.object || event;
+      const from = msg.from || event.from;  // Sender phone number
+      const to = msg.to?.[0] || msg.phoneNumberId || event.phoneNumberId;
+      const content = msg.content || msg.body || msg.text || '';
+      const messageId = msg.id || event.id || generateId('INBOUND');
+
+      // Skip if no content (might be a delivery status update)
+      if (!content && eventType === 'message.delivered') {
+        console.log('Skipping delivery status update');
+        return res.json({ success: true, skipped: 'delivery_status' });
+      }
+
+      console.log('Processing inbound SMS:', { from, content: content?.substring(0, 50), messageId });
 
       // Try to find the property by matching phone number
-      // First, look up in PME data for P1, P2, P3 matching the from number
       let reid = '';
       let primary = '';
 
+      // Ensure cache is ready
+      if (!pmeCache.mainData) {
+        console.log('PME cache not ready, refreshing...');
+        await refreshPMECache();
+      }
+
       if (pmeCache.mainData && pmeCache.headerMap) {
-        const p1Idx = pmeCache.headerMap['P1'];
-        const p2Idx = pmeCache.headerMap['P2'];
-        const p3Idx = pmeCache.headerMap['P3'];
+        // Try multiple column name variations for phone numbers
+        const phoneColNames = ['P1', 'P2', 'P3', 'PHONE_1', 'PHONE_2', 'PHONE_3', 'PHONE1', 'PHONE2', 'PHONE3', 'PHONE', 'CELL', 'MOBILE'];
+        const phoneColIndexes = [];
+
+        for (const name of phoneColNames) {
+          if (pmeCache.headerMap[name] !== undefined) {
+            phoneColIndexes.push(pmeCache.headerMap[name]);
+          }
+        }
+
         const reidIdx = pmeCache.headerMap['REID'];
         const primaryIdx = pmeCache.headerMap['PRIMARY'];
 
-        const fromDigits = from.replace(/\D/g, '').slice(-10);
+        const fromDigits = (from || '').replace(/\D/g, '').slice(-10);
+        console.log('Looking for phone:', fromDigits, 'in', phoneColIndexes.length, 'phone columns');
 
-        for (const row of pmeCache.mainData) {
-          const p1 = (row[p1Idx] || '').replace(/\D/g, '').slice(-10);
-          const p2 = (row[p2Idx] || '').replace(/\D/g, '').slice(-10);
-          const p3 = (row[p3Idx] || '').replace(/\D/g, '').slice(-10);
+        if (fromDigits.length === 10) {
+          for (let i = 1; i < pmeCache.mainData.length; i++) {
+            const row = pmeCache.mainData[i];
 
-          if (p1 === fromDigits || p2 === fromDigits || p3 === fromDigits) {
-            reid = row[reidIdx] || '';
-            primary = row[primaryIdx] || '';
-            break;
+            for (const colIdx of phoneColIndexes) {
+              const phoneVal = (row[colIdx] || '').replace(/\D/g, '').slice(-10);
+              if (phoneVal === fromDigits) {
+                reid = row[reidIdx] || '';
+                primary = row[primaryIdx] || '';
+                console.log('Phone matched! REID:', reid, 'PRIMARY:', primary);
+                break;
+              }
+            }
+            if (reid) break;
           }
         }
+
+        if (!reid) {
+          console.log('No property match found for phone:', fromDigits);
+        }
+      } else {
+        console.log('PME cache still not available');
       }
 
       // Log to MESSAGE_LOG
@@ -2001,6 +2036,8 @@ app.post('/webhooks/quo', async (req, res) => {
       ]);
 
       console.log('Inbound SMS logged:', { messageId, from, reid, content: content?.substring(0, 50) });
+    } else {
+      console.log('Unhandled webhook event type:', eventType);
     }
 
     res.json({ success: true, received: true });
