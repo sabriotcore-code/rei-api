@@ -20,6 +20,7 @@
  * - POST / with { action: 'getAssignees' } - Get assignee list from VAR
  * - POST / with { action: 'getOpenTodos', reid } - Get open to-dos for a property
  * - POST / with { action: 'queueMessage', reid, payload } - Queue/send a message
+ * - POST / with { action: 'uploadToDrive', folderId, fileName, mimeType, content } - Upload file to Drive
  */
 
 const express = require('express');
@@ -1477,6 +1478,53 @@ const handlers = {
       success: true,
       reid: data.reid,
       flagged: data.flagged,
+      timestamp: new Date().toISOString()
+    };
+  },
+
+  // Upload file to Google Drive folder
+  uploadToDrive: async (data) => {
+    const { folderId, fileName, mimeType, content, reid } = data;
+
+    if (!folderId) throw new Error('folderId is required');
+    if (!fileName) throw new Error('fileName is required');
+    if (!content) throw new Error('content (base64) is required');
+
+    const auth = await getAuth();
+    const drive = google.drive({ version: 'v3', auth });
+
+    // Convert base64 to buffer
+    const buffer = Buffer.from(content, 'base64');
+
+    // Create file in Drive
+    const fileMetadata = {
+      name: fileName,
+      parents: [folderId]
+    };
+
+    const media = {
+      mimeType: mimeType || 'application/octet-stream',
+      body: require('stream').Readable.from(buffer)
+    };
+
+    const response = await drive.files.create({
+      requestBody: fileMetadata,
+      media: media,
+      fields: 'id, name, webViewLink'
+    });
+
+    console.log('File uploaded to Drive:', {
+      fileId: response.data.id,
+      fileName: response.data.name,
+      folderId,
+      reid
+    });
+
+    return {
+      success: true,
+      fileId: response.data.id,
+      fileName: response.data.name,
+      webViewLink: response.data.webViewLink,
       timestamp: new Date().toISOString()
     };
   }
