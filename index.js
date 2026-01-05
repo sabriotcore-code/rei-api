@@ -599,12 +599,22 @@ const handlers = {
     const todos = [];
     const statsByAssignee = {};
 
+    // Normalize assignee name (handles #MATT, emails, etc.)
+    const normalizeAssignee = (name) => {
+      if (!name || typeof name !== 'string') return 'Other';
+      let clean = name.replace(/^#/, '').trim();
+      clean = clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
+      const valid = ['Matt', 'Erik', 'Jon', 'Patti'];
+      return valid.includes(clean) ? clean : 'Other';
+    };
+
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
       const status = String(row[headerMap['TO_DO_STATUS']] || row[headerMap['STATUS']] || 'OPEN').toUpperCase();
-      const assignee = row[headerMap['ASSIGNED_TO']] || row[headerMap['WHO']] || 'Unassigned';
+      const rawAssignee = row[headerMap['ASSIGNED_TO']] || row[headerMap['WHO']] || '';
+      const assignee = normalizeAssignee(rawAssignee);
 
-      // Count stats
+      // Count stats by normalized assignee
       if (status !== 'DONE' && status !== 'COMPLETED' && status !== 'CLOSED') {
         statsByAssignee[assignee] = (statsByAssignee[assignee] || 0) + 1;
       }
@@ -639,9 +649,16 @@ const handlers = {
       });
     }
 
+    // Sort by createdDate descending (newest first) so new to-dos appear
+    todos.sort((a, b) => {
+      const dateA = new Date(a.createdDate || 0);
+      const dateB = new Date(b.createdDate || 0);
+      return dateB - dateA;
+    });
+
     return {
       success: true,
-      todos: todos.slice(0, filter.limit || 100),
+      todos: todos.slice(0, filter.limit || 500),
       count: todos.length,
       statsByAssignee,
       timestamp: new Date().toISOString()
@@ -691,7 +708,17 @@ const handlers = {
         }
       }
 
-      const assignee = row[headerMap['ASSIGNED_TO']] || row[headerMap['WHO']] || 'Unassigned';
+      // Normalize assignee name (handles #MATT, emails, etc.)
+      const normalizeAssignee = (name) => {
+        if (!name || typeof name !== 'string') return 'Other';
+        let clean = name.replace(/^#/, '').trim();
+        clean = clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
+        const valid = ['Matt', 'Erik', 'Jon', 'Patti'];
+        return valid.includes(clean) ? clean : 'Other';
+      };
+
+      const rawAssignee = row[headerMap['ASSIGNED_TO']] || row[headerMap['WHO']] || '';
+      const assignee = normalizeAssignee(rawAssignee);
       const createdDate = row[headerMap['CREATED_DATE/TIME']] || row[headerMap['CREATED']] || '';
 
       // Determine category: open (active), future, or completed
@@ -1106,7 +1133,16 @@ const handlers = {
 
           const todoId = row[headerMap['TO_DO_ID']] || row[headerMap['TODO_ID']] || '';
           const action = row[headerMap['ACTION']] || '';
-          const assignee = row[headerMap['ASSIGNED_TO']] || row[headerMap['WHO']] || 'Unassigned';
+          // Normalize assignee name
+          const normalizeAssignee = (name) => {
+            if (!name || typeof name !== 'string') return 'Other';
+            let clean = name.replace(/^#/, '').trim();
+            clean = clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
+            const valid = ['Matt', 'Erik', 'Jon', 'Patti'];
+            return valid.includes(clean) ? clean : 'Other';
+          };
+          const rawAssignee = row[headerMap['ASSIGNED_TO']] || row[headerMap['WHO']] || '';
+          const assignee = normalizeAssignee(rawAssignee);
           const status = String(row[headerMap['TO_DO_STATUS']] || row[headerMap['STATUS']] || 'OPEN').toUpperCase();
           const createdDate = row[headerMap['CREATED_DATE/TIME']] || row[headerMap['CREATED']] || '';
           const createdBy = row[headerMap['CREATED_BY']] || row[headerMap['CREATEDBY']] || 'System';
@@ -1207,55 +1243,12 @@ const handlers = {
     };
   },
 
-  // Get assignees from VAR tab
+  // Get assignees - hardcoded list (VAR tab has polluted data)
   getAssignees: async () => {
-    const rows = await getSheetData(CONFIG.SHEETS.PME, `${CONFIG.TABS.VAR}!A:Z`);
-
-    if (rows.length < 1) {
-      return { success: true, assignees: ['Matt', 'Erik', 'Jon', 'Patti'] }; // Defaults
-    }
-
-    const headers = rows[0].map(normalizeHeader);
-    const headerMap = {};
-    headers.forEach((h, i) => { if (h) headerMap[h.toUpperCase().replace(/\s+/g, '_')] = i; });
-
-    // Look for assignee-related columns
-    const assigneeColumns = [];
-    const possibleNames = ['ASSIGNEE', 'WHO', 'TEAM', 'USER', 'PERSON', 'STAFF'];
-
-    Object.keys(headerMap).forEach(key => {
-      if (possibleNames.some(name => key.includes(name))) {
-        assigneeColumns.push(headerMap[key]);
-      }
-    });
-
-    // Also check columns K through O (indexes 10-14) as mentioned
-    for (let col = 10; col <= 14; col++) {
-      if (headers[col] && !assigneeColumns.includes(col)) {
-        assigneeColumns.push(col);
-      }
-    }
-
-    const assignees = new Set();
-
-    // Get unique values from assignee columns
-    for (let i = 1; i < rows.length; i++) {
-      for (const col of assigneeColumns) {
-        const value = rows[i][col];
-        if (value && String(value).trim()) {
-          assignees.add(String(value).trim());
-        }
-      }
-    }
-
-    // If no assignees found, use defaults
-    if (assignees.size === 0) {
-      return { success: true, assignees: ['Matt', 'Erik', 'Jon', 'Patti'] };
-    }
-
+    // Valid assignees only - sheet data is polluted with emails, #tags, TRUE, etc.
     return {
       success: true,
-      assignees: Array.from(assignees).sort(),
+      assignees: ['Matt', 'Erik', 'Jon', 'Patti'],
       timestamp: new Date().toISOString()
     };
   },
