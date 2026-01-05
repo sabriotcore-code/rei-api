@@ -21,6 +21,10 @@
  * - POST / with { action: 'getOpenTodos', reid } - Get open to-dos for a property
  * - POST / with { action: 'queueMessage', reid, payload } - Queue/send a message
  * - POST / with { action: 'uploadToDrive', folderId, fileName, mimeType, content } - Upload file to Drive
+ * - POST / with { action: 'sendSms', to, content, reid } - Send SMS via Quo (disabled)
+ * - POST / with { action: 'getSmsConfig' } - Get Quo SMS configuration status
+ * - POST / with { action: 'sendEmail', to, subject, body, reid } - Send email via Gmail
+ * - POST / with { action: 'getEmailConfig' } - Get Gmail configuration status
  */
 
 const express = require('express');
@@ -1525,6 +1529,243 @@ const handlers = {
       fileId: response.data.id,
       fileName: response.data.name,
       webViewLink: response.data.webViewLink,
+      timestamp: new Date().toISOString()
+    };
+  },
+
+  // ============================================================================
+  // QUO SMS MESSAGING (Structure only - sending disabled)
+  // ============================================================================
+
+  // Send SMS via Quo API
+  sendSms: async (data) => {
+    const { to, content, from, reid } = data;
+
+    if (!to) throw new Error('to (phone number) is required');
+    if (!content) throw new Error('content (message text) is required');
+
+    // Validate E.164 format
+    const phoneRegex = /^\+1\d{10}$/;
+    if (!phoneRegex.test(to)) {
+      throw new Error('Phone number must be in E.164 format (e.g., +15016729023)');
+    }
+
+    // DISABLED: Do not send SMS yet - just log and queue
+    const SMS_SENDING_ENABLED = false;
+
+    if (SMS_SENDING_ENABLED) {
+      // Quo API call (when enabled)
+      const quoResponse = await fetch('https://api.openphone.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Authorization': process.env.QUO_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          content: content,
+          from: from || process.env.QUO_FROM_NUMBER, // Default sending number
+          to: [to]
+        })
+      });
+
+      if (!quoResponse.ok) {
+        const error = await quoResponse.text();
+        throw new Error('Quo API error: ' + error);
+      }
+
+      const result = await quoResponse.json();
+      return {
+        success: true,
+        sent: true,
+        messageId: result.data?.id,
+        status: 'sent',
+        to,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    // Log the message that would be sent (for testing)
+    console.log('SMS QUEUED (sending disabled):', { to, content, from, reid });
+
+    // Write to MESSAGE_LOG for tracking
+    await ensureSheetHeaders(CONFIG.SHEETS.NOTE_HISTORY, CONFIG.TABS.MESSAGE_LOG,
+      ['MESSAGE_ID', 'TIMESTAMP', 'REID', 'RECIPIENTS', 'CHANNEL', 'CONTENT', 'SCHEDULED_DATE', 'STATUS', 'SENT_BY']);
+
+    const messageId = generateId('SMS');
+    await appendRow(CONFIG.SHEETS.NOTE_HISTORY, `${CONFIG.TABS.MESSAGE_LOG}!A:I`, [
+      messageId,
+      formatTimestamp(new Date()),
+      reid || '',
+      to,
+      'SMS',
+      content,
+      '',
+      'QUEUED_NOT_SENT',  // Special status indicating SMS is ready but sending disabled
+      'Dashboard'
+    ]);
+
+    return {
+      success: true,
+      sent: false,
+      messageId,
+      status: 'queued_not_sent',
+      message: 'SMS queued but sending is currently disabled',
+      to,
+      content,
+      timestamp: new Date().toISOString()
+    };
+  },
+
+  // Get Quo SMS configuration/status
+  getSmsConfig: async () => {
+    return {
+      success: true,
+      sendingEnabled: false,
+      apiConfigured: !!process.env.QUO_API_KEY,
+      fromNumber: process.env.QUO_FROM_NUMBER || 'Not configured',
+      testNumber: '+15016729023',  // 1400 W Markham St test number
+      testAddress: '1400 W Markham St',
+      timestamp: new Date().toISOString()
+    };
+  },
+
+  // ============================================================================
+  // GMAIL EMAIL SENDING
+  // ============================================================================
+
+  // Send email via Gmail API
+  sendEmail: async (data) => {
+    const { to, subject, body, reid, htmlBody } = data;
+
+    if (!to) throw new Error('to (email address) is required');
+    if (!subject) throw new Error('subject is required');
+    if (!body && !htmlBody) throw new Error('body or htmlBody is required');
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(to)) {
+      throw new Error('Invalid email address format');
+    }
+
+    const FROM_EMAIL = 'contact@rei-realty.com';
+
+    // Check if Gmail is configured
+    if (!process.env.GMAIL_REFRESH_TOKEN) {
+      // Log the email that would be sent (for testing)
+      console.log('EMAIL QUEUED (Gmail not configured):', { to, subject, reid });
+
+      // Write to MESSAGE_LOG for tracking
+      await ensureSheetHeaders(CONFIG.SHEETS.NOTE_HISTORY, CONFIG.TABS.MESSAGE_LOG,
+        ['MESSAGE_ID', 'TIMESTAMP', 'REID', 'RECIPIENTS', 'CHANNEL', 'CONTENT', 'SCHEDULED_DATE', 'STATUS', 'SENT_BY']);
+
+      const messageId = generateId('EML');
+      await appendRow(CONFIG.SHEETS.NOTE_HISTORY, `${CONFIG.TABS.MESSAGE_LOG}!A:I`, [
+        messageId,
+        formatTimestamp(new Date()),
+        reid || '',
+        to,
+        'EMAIL',
+        `Subject: ${subject}\n\n${body || htmlBody}`,
+        '',
+        'QUEUED_NO_GMAIL',  // Gmail not yet configured
+        'Dashboard'
+      ]);
+
+      return {
+        success: true,
+        sent: false,
+        messageId,
+        status: 'queued_no_gmail',
+        message: 'Email queued but Gmail (contact@rei-realty.com) not yet configured',
+        to,
+        subject,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    // Gmail OAuth2 client
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GMAIL_CLIENT_ID,
+      process.env.GMAIL_CLIENT_SECRET,
+      'https://developers.google.com/oauthplayground'
+    );
+
+    oauth2Client.setCredentials({
+      refresh_token: process.env.GMAIL_REFRESH_TOKEN
+    });
+
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+
+    // Construct email
+    const emailContent = htmlBody
+      ? [
+          `From: REI Realty <${FROM_EMAIL}>`,
+          `To: ${to}`,
+          `Subject: ${subject}`,
+          'MIME-Version: 1.0',
+          'Content-Type: text/html; charset=utf-8',
+          '',
+          htmlBody
+        ].join('\r\n')
+      : [
+          `From: REI Realty <${FROM_EMAIL}>`,
+          `To: ${to}`,
+          `Subject: ${subject}`,
+          'MIME-Version: 1.0',
+          'Content-Type: text/plain; charset=utf-8',
+          '',
+          body
+        ].join('\r\n');
+
+    // Encode as base64url
+    const encodedEmail = Buffer.from(emailContent)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
+    // Send via Gmail API
+    const response = await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: {
+        raw: encodedEmail
+      }
+    });
+
+    console.log('Email sent:', { messageId: response.data.id, to, subject, reid });
+
+    // Log to MESSAGE_LOG
+    const logId = generateId('EML');
+    await appendRow(CONFIG.SHEETS.NOTE_HISTORY, `${CONFIG.TABS.MESSAGE_LOG}!A:I`, [
+      logId,
+      formatTimestamp(new Date()),
+      reid || '',
+      to,
+      'EMAIL',
+      `Subject: ${subject}\n\n${body || '(HTML email)'}`,
+      '',
+      'SENT',
+      'Dashboard'
+    ]);
+
+    return {
+      success: true,
+      sent: true,
+      messageId: response.data.id,
+      logId,
+      status: 'sent',
+      to,
+      subject,
+      timestamp: new Date().toISOString()
+    };
+  },
+
+  // Get email configuration status
+  getEmailConfig: async () => {
+    return {
+      success: true,
+      gmailConfigured: !!process.env.GMAIL_REFRESH_TOKEN,
+      fromEmail: 'contact@rei-realty.com',
       timestamp: new Date().toISOString()
     };
   }
