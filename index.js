@@ -1853,7 +1853,7 @@ const handlers = {
     const listResponse = await gmail.users.messages.list({
       userId: 'me',
       maxResults,
-      q: 'is:inbox'
+      labelIds: ['INBOX']
     });
 
     const messages = listResponse.data.messages || [];
