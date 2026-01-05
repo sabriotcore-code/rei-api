@@ -507,9 +507,42 @@ async function updateRow(spreadsheetId, range, values) {
   });
 }
 
+// Create a new tab/sheet if it doesn't exist
+async function createTabIfNotExists(spreadsheetId, tabName) {
+  const sheets = await getSheets();
+  try {
+    // First check if tab exists by getting spreadsheet metadata
+    const meta = await sheets.spreadsheets.get({ spreadsheetId });
+    const exists = meta.data.sheets.some(s => s.properties.title === tabName);
+
+    if (!exists) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        resource: {
+          requests: [{
+            addSheet: {
+              properties: { title: tabName }
+            }
+          }]
+        }
+      });
+      console.log(`Created new tab: ${tabName}`);
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.log(`Error checking/creating tab ${tabName}:`, err.message);
+    throw err;
+  }
+}
+
 // Ensure sheet/tab exists, create headers if needed
 async function ensureSheetHeaders(spreadsheetId, tabName, headers) {
   try {
+    // First ensure the tab exists
+    await createTabIfNotExists(spreadsheetId, tabName);
+
+    // Now check/create headers
     const rows = await getSheetData(spreadsheetId, `${tabName}!1:1`);
     if (!rows || rows.length === 0 || !rows[0] || rows[0].length === 0) {
       // No headers, write them
@@ -517,8 +550,8 @@ async function ensureSheetHeaders(spreadsheetId, tabName, headers) {
       console.log(`Created headers for ${tabName}`);
     }
   } catch (err) {
-    // Tab might not exist - try to create it or just log
     console.log(`Note: Could not verify headers for ${tabName}:`, err.message);
+    throw err; // Re-throw so caller knows it failed
   }
 }
 
