@@ -1607,7 +1607,8 @@ const handlers = {
     }
 
     // SMS sending enabled - requires manual click in dashboard
-    const SMS_SENDING_ENABLED = true;
+    // DISABLED 2026-01-07 - mass message incident
+    const SMS_SENDING_ENABLED = false;
 
     // Quo PhoneNumberIds (use env var or default to Main Line)
     const QUO_PHONE_IDS = {
