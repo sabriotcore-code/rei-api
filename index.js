@@ -378,7 +378,7 @@ async function syncProductionTab(sheets, sourceTabName, targetTabName, targetDat
     await sheets.spreadsheets.values.update({
       spreadsheetId: CONFIG.SHEETS.PRODUCTION_SYNC,
       range: `${targetTabName}!A1`,
-      valueInputOption: 'USER_ENTERED',
+      valueInputOption: 'RAW',  // RAW prevents formula injection (=, +, -, @ prefixes)
       resource: { values: externalData }
     });
 
@@ -402,6 +402,29 @@ async function syncProductionTab(sheets, sourceTabName, targetTabName, targetDat
 // ============================================================================
 
 let sheetsClient = null;
+let driveAuthClient = null;
+
+// Get authenticated client for Drive API
+async function getAuth() {
+  if (driveAuthClient) return driveAuthClient;
+
+  let auth;
+
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+    auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/drive.file']
+    });
+  } else {
+    auth = new google.auth.GoogleAuth({
+      scopes: ['https://www.googleapis.com/auth/drive.file']
+    });
+  }
+
+  driveAuthClient = await auth.getClient();
+  return driveAuthClient;
+}
 
 async function getSheets() {
   if (sheetsClient) return sheetsClient;
@@ -482,7 +505,7 @@ async function appendRow(spreadsheetId, range, values) {
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     range,
-    valueInputOption: 'USER_ENTERED',
+    valueInputOption: 'RAW',  // RAW prevents formula injection (=, +, -, @ prefixes)
     insertDataOption: 'INSERT_ROWS',
     resource: { values: [values] }
   });
@@ -493,7 +516,7 @@ async function updateCell(spreadsheetId, range, value) {
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     range,
-    valueInputOption: 'USER_ENTERED',
+    valueInputOption: 'RAW',  // RAW prevents formula injection (=, +, -, @ prefixes)
     resource: { values: [[value]] }
   });
 }
@@ -503,7 +526,7 @@ async function updateRow(spreadsheetId, range, values) {
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     range,
-    valueInputOption: 'USER_ENTERED',
+    valueInputOption: 'RAW',  // RAW prevents formula injection (=, +, -, @ prefixes)
     resource: { values: [values] }
   });
 }
