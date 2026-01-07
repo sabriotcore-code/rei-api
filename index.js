@@ -1377,23 +1377,27 @@ const handlers = {
     };
   },
 
-  // Get all property labels/data
+  // Get all property labels/data (uses pmeCache for speed)
   getAllPropertyLabels: async (data) => {
-    const rows = await getSheetData(CONFIG.SHEETS.PME, `${CONFIG.TABS.MAIN}!A:ZZ`);
-    if (rows.length < 2) {
-      return { success: true, properties: {}, count: 0 };
+    // Use cache if valid, otherwise refresh
+    if (!isCacheValid()) {
+      await refreshPMECache();
     }
 
-    const headers = rows[0].map(normalizeHeader);
-    const headerMap = {};
-    headers.forEach((h, idx) => { if (h) headerMap[h] = idx; });
+    // If cache still empty after refresh, return empty
+    if (!pmeCache.mainData || pmeCache.mainData.length < 2) {
+      return { success: true, properties: {}, count: 0, cached: false };
+    }
+
+    const rows = pmeCache.mainData;
+    const headerMap = pmeCache.headerMap;
 
     const reidCol = headerMap['REID'];
     if (reidCol === undefined) throw new Error('REID column not found');
 
     const properties = {};
     const reids = data.reids ? new Set(data.reids) : null;
-    const fields = data.fields ? new Set(data.fields.map(normalizeHeader)) : null;
+    const fields = data.fields ? new Set(data.fields.map(f => f.toUpperCase().replace(/\s+/g, '_'))) : null;
 
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
@@ -1418,7 +1422,9 @@ const handlers = {
       success: true,
       properties,
       count: Object.keys(properties).length,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      cached: isCacheValid(),
+      cacheAge: pmeCache.lastRefresh ? Math.round((Date.now() - pmeCache.lastRefresh) / 1000) : null
     };
   },
 
