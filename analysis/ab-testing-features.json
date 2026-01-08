@@ -1,0 +1,17 @@
+{
+  "abTestingFeatures": {
+    "messageContent": true,
+    "messageTiming": true,
+    "messageChannel": true
+  },
+  "messageOptimizationFeatures": {
+    "personalization": true,
+    "segmentation": true,
+    "automation": true
+  },
+  "performanceImprovementMechanisms": {
+    "analytics": true,
+    "reporting": true,
+    "optimization": true
+  }
+}
