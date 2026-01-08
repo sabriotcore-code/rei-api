@@ -1,0 +1,76 @@
+{
+  "workflow": [
+    {
+      "stage": "Data Ingestion and Validation",
+      "system": "PME",
+      "actions": [
+        "Collect and store data",
+        "Validate data integrity"
+      ],
+      "triggers": [
+        "Data Update Trigger"
+      ]
+    },
+    {
+      "stage": "Segmentation",
+      "system": "PME",
+      "actions": [
+        "Segment customers"
+      ],
+      "decisionPoints": [
+        "Check segmentation criteria"
+      ]
+    },
+    {
+      "stage": "Notification Preparation",
+      "system": "PME",
+      "actions": [
+        "Generate messages",
+        "Format messages for channels"
+      ],
+      "decisionPoints": [
+        "Communication channel preference"
+      ]
+    },
+    {
+      "stage": "Communication Dispatch",
+      "systems": [
+        "QUO SMS",
+        "Gmail"
+      ],
+      "actions": [
+        "Send SMS",
+        "Send Email"
+      ],
+      "triggers": [
+        "Scheduled Communications Trigger"
+      ]
+    },
+    {
+      "stage": "Response Monitoring and Processing",
+      "systems": [
+        "QUO SMS",
+        "Gmail",
+        "PME"
+      ],
+      "actions": [
+        "Track responses",
+        "Update response status in PME"
+      ],
+      "triggers": [
+        "Response Check Trigger"
+      ]
+    },
+    {
+      "stage": "Escalation and Manual Overrides",
+      "system": "PME",
+      "actions": [
+        "Escalate cases",
+        "Allow manual overrides"
+      ],
+      "decisionPoints": [
+        "Assess escalation necessity"
+      ]
+    }
+  ]
+}
