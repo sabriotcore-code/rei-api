@@ -1,0 +1,31 @@
+{"integrationPoints": [
+  {"system": "PME Master Sheet", "endpoint": "https://pme-master-sheet.com/api/data"},
+  {"system": "Gmail", "endpoint": "https://gmail.com/api/email"}
+],
+"dataFormats": [
+  {"format": "JSON"},
+  {"format": "XML"}
+],
+"apiEndpoints": [
+  {"endpoint": "https://quo-sms.com/api/send-sms", "method": "POST"},
+  {"endpoint": "https://quo-sms.com/api/receive-sms", "method": "GET"},
+  {"endpoint": "https://quo-sms.com/api/template", "method": "POST"},
+  {"endpoint": "https://quo-sms.com/api/template", "method": "GET"}
+],
+"smsTriggers": [
+  {"trigger": "Automated workflows"},
+  {"trigger": "Manual user input"}
+],
+"templates": [
+  {"type": "Pre-built templates"},
+  {"type": "Custom templates"}
+],
+"responseHandling": [
+  {"handling": "Automated workflows"},
+  {"handling": "Manual user review"}
+],
+"workflowTouchpoints": [
+  {"system": "PME Master Sheet"},
+  {"system": "Gmail"}
+]
+}
