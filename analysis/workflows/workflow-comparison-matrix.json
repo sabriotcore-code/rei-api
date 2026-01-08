@@ -1,0 +1,49 @@
+{
+  "systems": [
+    {
+      "name": "System A",
+      "apiEndpoints": [
+        "/api/system-a/endpoint-1",
+        "/api/system-a/endpoint-2"
+      ],
+      "dataFlows": [
+        "System A -> System B",
+        "System A -> System C"
+      ],
+      "businessLogic": [
+        "Validate customer data",
+        "Process payment information"
+      ]
+    },
+    {
+      "name": "System B",
+      "apiEndpoints": [
+        "/api/system-b/endpoint-1",
+        "/api/system-b/endpoint-2"
+      ],
+      "dataFlows": [
+        "System B -> System A",
+        "System B -> System C"
+      ],
+      "businessLogic": [
+        "Update customer records",
+        "Generate reports"
+      ]
+    },
+    {
+      "name": "System C",
+      "apiEndpoints": [
+        "/api/system-c/endpoint-1",
+        "/api/system-c/endpoint-2"
+      ],
+      "dataFlows": [
+        "System C -> System A",
+        "System C -> System B"
+      ],
+      "businessLogic": [
+        "Send notifications",
+        "Track customer interactions"
+      ]
+    }
+  ]
+}
