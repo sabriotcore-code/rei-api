@@ -1,0 +1,17 @@
+{
+  "auditLog": {
+    "timestamp": "YYYY-MM-DDTHH:MM:SSZ",
+    "userId": "string",
+    "action": "string",
+    "dataChanged": "string"
+  },
+  "retentionPeriod": "7 years",
+  "complianceReports": {
+    "frequency": "quarterly",
+    "contents": [
+      "number of audit log entries",
+      "number of compliance incidents",
+      "summary of actions taken"
+    ]
+  }
+}
