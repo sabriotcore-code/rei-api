@@ -1,0 +1,38 @@
+{
+  "dataInconsistencies": [
+    {
+      "system1": "PME",
+      "system2": "QUO SMS",
+      "inconsistency": "Inconsistent data formats"
+    },
+    {
+      "system1": "QUO SMS",
+      "system2": "Gmail",
+      "inconsistency": "Missing data fields"
+    }
+  ],
+  "missingMappings": [
+    {
+      "system1": "PME",
+      "system2": "QUO SMS",
+      "missingMapping": "No mapping between customer IDs"
+    },
+    {
+      "system1": "QUO SMS",
+      "system2": "Gmail",
+      "missingMapping": "No mapping between message templates and email templates"
+    }
+  ],
+  "synchronizationGaps": [
+    {
+      "system1": "PME",
+      "system2": "QUO SMS",
+      "synchronizationGap": "No automated synchronization"
+    },
+    {
+      "system1": "QUO SMS",
+      "system2": "Gmail",
+      "synchronizationGap": "No automated synchronization"
+    }
+  ]
+}
