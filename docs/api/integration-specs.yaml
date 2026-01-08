@@ -1,0 +1,91 @@
+# OpenAPI Specifications for System-to-System Communication
+openapi: 3.0.2
+info:
+  title: Automated Collections API
+  description: API for integrating PME, QUO SMS, and Gmail
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+    description: Production server
+paths:
+  /pme-data:
+    get:
+      summary: Retrieve PME data
+      description: Get data from PME Master Sheet
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PMEData'
+        '500':
+          description: Internal server error
+      security:
+        - bearerAuth: []
+  /quo-sms:
+    post:
+      summary: Send SMS via QUO SMS
+      description: Send message using QUO SMS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QUOSMSRequest'
+      responses:
+        '200':
+          description: Successful response
+        '500':
+          description: Internal server error
+      security:
+        - bearerAuth: []
+  /gmail-workflow:
+    post:
+      summary: Trigger Gmail workflow
+      description: Trigger email workflow using Gmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GmailRequest'
+      responses:
+        '200':
+          description: Successful response
+        '500':
+          description: Internal server error
+      security:
+        - bearerAuth: []
+components:
+  schemas:
+    PMEData:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    QUOSMSRequest:
+      type: object
+      properties:
+        phoneNumber:
+          type: string
+        message:
+          type: string
+    GmailRequest:
+      type: object
+      properties:
+        to:
+          type: string
+        subject:
+          type: string
+        body:
+          type: string
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
