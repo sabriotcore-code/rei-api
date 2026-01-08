@@ -1,0 +1,31 @@
+collection_api:
+  url: https://example.com/collection-api
+  method: POST
+  headers:
+    Content-Type: application/json
+  data:
+    - collection_id
+    - collection_name
+data_exchange_api:
+  url: https://example.com/data-exchange-api
+  method: PUT
+  headers:
+    Content-Type: application/json
+  data:
+    - data_id
+    - data_value
+external_data_provider:
+  url: https://example.com/external-data-provider
+  method: GET
+  headers:
+    Accept: application/json
+  data:
+    - external_data_id
+notification_service:
+  url: https://example.com/notification-service
+  method: POST
+  headers:
+    Content-Type: application/json
+  data:
+    - notification_id
+    - notification_message
