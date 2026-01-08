@@ -1,0 +1,32 @@
+{
+  "opportunities": [
+    {
+      "process": "Customer Payment Reminder",
+      "description": "Automate reminder notifications for pending payments via emails and SMS.",
+      "impact": "Reduction in overdue payments and improved cash flow.",
+      "roi": "High",
+      "system": "System A"
+    },
+    {
+      "process": "Data Validation for New Accounts",
+      "description": "Implement automated validation checks for new account entries to ensure data accuracy.",
+      "impact": "Improved data accuracy and reduced time spent on manual corrections.",
+      "roi": "Medium",
+      "system": "System B"
+    },
+    {
+      "process": "Invoice Processing",
+      "description": "Automate the extraction and processing of invoice data received in various formats.",
+      "impact": "Decreased processing time and manual errors.",
+      "roi": "High",
+      "system": "System C"
+    },
+    {
+      "process": "Customer Feedback Collection",
+      "description": "Automate the collection and analysis of customer feedback post-interaction.",
+      "impact": "Better customer insights and experience.",
+      "roi": "Medium",
+      "system": "System A"
+    }
+  ]
+}
