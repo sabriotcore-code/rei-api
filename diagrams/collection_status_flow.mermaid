@@ -1,0 +1,8 @@
+graph LR
+    AS[(Assigned)] -->|Assignment accepted|> PL[(Planned)]
+    PL -->|Planning complete|> IP[(In Progress)]
+    IP -->|Data collection complete|> IR[(In Review)]
+    IR -->|Data review complete|> AN[(Analyzing)]
+    AN -->|Data analysis complete|> RP[(Reported)]
+    RP -->|Report reviewed and approved|> AP[(Approved)]
+    AP -->|Report finalized|> CM[(Complete)]
