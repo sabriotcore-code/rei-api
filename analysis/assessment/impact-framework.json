@@ -1,0 +1,38 @@
+{
+  "framework": {
+    "criteria": [
+      {
+        "id": "efficiency",
+        "description": "Measures the impact on collections workflow efficiency.",
+        "metrics": [
+          { "name": "tasks_time_reduction", "description": "Time saved on common tasks due to automation.", "unit": "hours/week" },
+          { "name": "throughput_increase", "description": "Increase in the number of cases processed.", "unit": "cases/week" }
+        ]
+      },
+      {
+        "id": "customer_experience",
+        "description": "Evaluates enhancements in customer experience.",
+        "metrics": [
+          { "name": "satisfaction_score_change", "description": "Change in customer satisfaction scores.", "unit": "percentage" },
+          { "name": "complaint_reduction", "description": "Reduction in customer complaints.", "unit": "complaints/month" }
+        ]
+      },
+      {
+        "id": "data_accuracy",
+        "description": "Assesses improvement in data accuracy and integrity.",
+        "metrics": [
+          { "name": "error_rate_reduction", "description": "Reduction in data entry errors.", "unit": "errors/1000 entries" },
+          { "name": "consistent_data_updates", "description": "Consistency in data update processes.", "unit": "updates conformity percentage" }
+        ]
+      },
+      {
+        "id": "cost_reduction",
+        "description": "Quantifies operational cost savings.",
+        "metrics": [
+          { "name": "labor_cost_savings", "description": "Reduction in labor costs due to automation.", "unit": "USD/month" },
+          { "name": "technology_costs_reduction", "description": "Savings in technological and maintenance costs.", "unit": "USD/month" }
+        ]
+      }
+    ]
+  }
+}
