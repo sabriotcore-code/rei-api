@@ -1,0 +1,187 @@
+{
+  "systems": [
+    {
+      "id": "collections-system-1",
+      "name": "REI Collections System 1",
+      "description": "System responsible for customer data management",
+      "integrations": [
+        {
+          "id": "integration-1",
+          "name": "Customer Data Integration",
+          "description": "Integration with customer data system",
+          "status": "active"
+        },
+        {
+          "id": "integration-2",
+          "name": "Payment Gateway Integration",
+          "description": "Integration with payment gateway system",
+          "status": "inactive"
+        }
+      ],
+      "data-flows": [
+        {
+          "id": "data-flow-1",
+          "name": "Customer Data Flow",
+          "description": "Flow of customer data between systems",
+          "status": "active"
+        },
+        {
+          "id": "data-flow-2",
+          "name": "Payment Data Flow",
+          "description": "Flow of payment data between systems",
+          "status": "inactive"
+        }
+      ],
+      "communication-gaps": [
+        {
+          "id": "communication-gap-1",
+          "name": "Customer Communication Gap",
+          "description": "Gap in customer communication between systems",
+          "status": "open"
+        },
+        {
+          "id": "communication-gap-2",
+          "name": "Payment Communication Gap",
+          "description": "Gap in payment communication between systems",
+          "status": "open"
+        }
+      ]
+    },
+    {
+      "id": "collections-system-2",
+      "name": "REI Collections System 2",
+      "description": "System responsible for payment processing",
+      "integrations": [
+        {
+          "id": "integration-3",
+          "name": "Payment Processing Integration",
+          "description": "Integration with payment processing system",
+          "status": "active"
+        },
+        {
+          "id": "integration-4",
+          "name": "Customer Data Integration",
+          "description": "Integration with customer data system",
+          "status": "inactive"
+        }
+      ],
+      "data-flows": [
+        {
+          "id": "data-flow-3",
+          "name": "Payment Data Flow",
+          "description": "Flow of payment data between systems",
+          "status": "active"
+        },
+        {
+          "id": "data-flow-4",
+          "name": "Customer Data Flow",
+          "description": "Flow of customer data between systems",
+          "status": "inactive"
+        }
+      ],
+      "communication-gaps": [
+        {
+          "id": "communication-gap-3",
+          "name": "Payment Communication Gap",
+          "description": "Gap in payment communication between systems",
+          "status": "open"
+        },
+        {
+          "id": "communication-gap-4",
+          "name": "Customer Communication Gap",
+          "description": "Gap in customer communication between systems",
+          "status": "open"
+        }
+      ]
+    },
+    {
+      "id": "collections-system-3",
+      "name": "REI Collections System 3",
+      "description": "System responsible for reporting and analytics",
+      "integrations": [
+        {
+          "id": "integration-5",
+          "name": "Reporting Integration",
+          "description": "Integration with reporting system",
+          "status": "active"
+        },
+        {
+          "id": "integration-6",
+          "name": "Analytics Integration",
+          "description": "Integration with analytics system",
+          "status": "inactive"
+        }
+      ],
+      "data-flows": [
+        {
+          "id": "data-flow-5",
+          "name": "Reporting Data Flow",
+          "description": "Flow of reporting data between systems",
+          "status": "active"
+        },
+        {
+          "id": "data-flow-6",
+          "name": "Analytics Data Flow",
+          "description": "Flow of analytics data between systems",
+          "status": "inactive"
+        }
+      ],
+      "communication-gaps": [
+        {
+          "id": "communication-gap-5",
+          "name": "Reporting Communication Gap",
+          "description": "Gap in reporting communication between systems",
+          "status": "open"
+        },
+        {
+          "id": "communication-gap-6",
+          "name": "Analytics Communication Gap",
+          "description": "Gap in analytics communication between systems",
+          "status": "open"
+        }
+      ]
+    }
+  ],
+  "missing-integrations": [
+    {
+      "id": "missing-integration-1",
+      "name": "Customer Data Integration",
+      "description": "Integration with customer data system",
+      "status": "inactive"
+    },
+    {
+      "id": "missing-integration-2",
+      "name": "Payment Gateway Integration",
+      "description": "Integration with payment gateway system",
+      "status": "inactive"
+    }
+  ],
+  "broken-data-flows": [
+    {
+      "id": "broken-data-flow-1",
+      "name": "Customer Data Flow",
+      "description": "Flow of customer data between systems",
+      "status": "inactive"
+    },
+    {
+      "id": "broken-data-flow-2",
+      "name": "Payment Data Flow",
+      "description": "Flow of payment data between systems",
+      "status": "inactive"
+    }
+  ],
+  "communication-gaps": [
+    {
+      "id": "communication-gap-7",
+      "name": "Customer Communication Gap",
+      "description": "Gap in customer communication between systems",
+      "status": "open"
+    },
+    {
+      "id": "communication-gap-8",
+      "name": "Payment Communication Gap",
+      "description": "Gap in payment communication between systems",
+      "status": "open"
+    }
+  ]
+}
