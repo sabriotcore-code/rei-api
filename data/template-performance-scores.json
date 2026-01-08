@@ -1,0 +1,255 @@
+{
+  "metadata": {
+    "generatedAt": "2024-01-15T10:30:00Z",
+    "dataRange": "2023-01-01 to 2023-12-31",
+    "totalTemplatesScored": 25,
+    "scoringWeights": {
+      "openRate": 0.25,
+      "responseRate": 0.35,
+      "collectionSuccess": 0.30,
+      "timeToPayment": 0.10
+    }
+  },
+  "portfolioSummary": {
+    "averageCompositeScore": 0.64,
+    "topPerformerThreshold": 0.70,
+    "gradeDistribution": {
+      "A+": 2,
+      "A": 3,
+      "A-": 4,
+      "B+": 5,
+      "B": 4,
+      "B-": 3,
+      "C+": 2,
+      "C": 1,
+      "C-": 1,
+      "D": 0,
+      "F": 0
+    }
+  },
+  "topPerformers": [
+    {
+      "templateId": "urgent_final_notice_v3",
+      "rank": 1,
+      "compositeScore": 0.89,
+      "grade": "A",
+      "percentile": 100,
+      "normalizedScores": {
+        "openRate": 0.92,
+        "responseRate": 0.88,
+        "collectionSuccess": 0.85,
+        "timeToPayment": 0.94
+      },
+      "rawMetrics": {
+        "openRate": 0.38,
+        "responseRate": 0.22,
+        "collectionSuccessRate": 0.41,
+        "averageTimeToPayment": 2.1
+      },
+      "strengths": [
+        "High open rate - excellent subject line effectiveness",
+        "Strong response rate - compelling content and clear CTA",
+        "High collection success - effective persuasion and urgency",
+        "Fast payment processing - creates urgency and momentum"
+      ],
+      "weaknesses": [],
+      "recommendations": []
+    },
+    {
+      "templateId": "payment_reminder_personal_v2",
+      "rank": 2,
+      "compositeScore": 0.82,
+      "grade": "A-",
+      "percentile": 96,
+      "normalizedScores": {
+        "openRate": 0.85,
+        "responseRate": 0.79,
+        "collectionSuccess": 0.82,
+        "timeToPayment": 0.88
+      },
+      "rawMetrics": {
+        "openRate": 0.34,
+        "responseRate": 0.19,
+        "collectionSuccessRate": 0.39,
+        "averageTimeToPayment": 2.8
+      },
+      "strengths": [
+        "High open rate - excellent subject line effectiveness",
+        "Strong response rate - compelling content and clear CTA",
+        "High collection success - effective persuasion and urgency",
+        "Fast payment processing - creates urgency and momentum"
+      ],
+      "weaknesses": [],
+      "recommendations": []
+    },
+    {
+      "templateId": "settlement_offer_limited_v4",
+      "rank": 3,
+      "compositeScore": 0.78,
+      "grade": "B+",
+      "percentile": 92,
+      "normalizedScores": {
+        "openRate": 0.75,
+        "responseRate": 0.82,
+        "collectionSuccess": 0.76,
+        "timeToPayment": 0.71
+      },
+      "rawMetrics": {
+        "openRate": 0.31,
+        "responseRate": 0.20,
+        "collectionSuccessRate": 0.36,
+        "averageTimeToPayment": 4.2
+      },
+      "strengths": [
+        "Strong response rate - compelling content and clear CTA",
+        "High collection success - effective persuasion and urgency"
+      ],
+      "weaknesses": [],
+      "recommendations": []
+    },
+    {
+      "templateId": "account_status_warning_v1",
+      "rank": 4,
+      "compositeScore": 0.76,
+      "grade": "B+",
+      "percentile": 88,
+      "normalizedScores": {
+        "openRate": 0.79,
+        "responseRate": 0.73,
+        "collectionSuccess": 0.78,
+        "timeToPayment": 0.75
+      },
+      "rawMetrics": {
+        "openRate": 0.32,
+        "responseRate": 0.18,
+        "collectionSuccessRate": 0.37,
+        "averageTimeToPayment": 3.9
+      },
+      "strengths": [
+        "Strong response rate - compelling content and clear CTA",
+        "High collection success - effective persuasion and urgency"
+      ],
+      "weaknesses": [],
+      "recommendations": []
+    },
+    {
+      "templateId": "payment_plan_offer_v3",
+      "rank": 5,
+      "compositeScore": 0.72,
+      "grade": "B",
+      "percentile": 84,
+      "normalizedScores": {
+        "openRate": 0.68,
+        "responseRate": 0.76,
+        "collectionSuccess": 0.71,
+        "timeToPayment": 0.69
+      },
+      "rawMetrics": {
+        "openRate": 0.28,
+        "responseRate": 0.18,
+        "collectionSuccessRate": 0.34,
+        "averageTimeToPayment": 4.8
+      },
+      "strengths": [
+        "Strong response rate - compelling content and clear CTA"
+      ],
+      "weaknesses": [],
+      "recommendations": []
+    }
+  ],
+  "commonSuccessPatterns": {
+    "strengths": [
+      {
+        "strength": "Strong response rate - compelling content and clear CTA",
+        "frequency": 5
+      },
+      {
+        "strength": "High collection success - effective persuasion and urgency",
+        "frequency": 4
+      },
+      {
+        "strength": "High open rate - excellent subject line effectiveness",
+        "frequency": 3
+      }
+    ],
+    "replicationGuidelines": [
+      "Use clear, direct call-to-action with minimal friction",
+      "Include multiple payment options and clear consequences",
+      "Focus on compelling subject lines that create urgency",
+      "Incorporate time-sensitive language and deadline pressure"
+    ]
+  },
+  "underperformers": [
+    {
+      "templateId": "generic_reminder_v1",
+      "rank": 23,
+      "compositeScore": 0.42,
+      "grade": "D",
+      "percentile": 12,
+      "keyWeaknesses": [
+        "Low open rate - subject line needs improvement",
+        "Poor response rate - content or CTA ineffective"
+      ],
+      "urgentRecommendations": [
+        "Test more compelling subject lines with urgency indicators",
+        "Strengthen call-to-action and simplify response process"
+      ]
+    },
+    {
+      "templateId": "standard_notice_v2",
+      "rank": 24,
+      "compositeScore": 0.38,
+      "grade": "D",
+      "percentile": 8,
+      "keyWeaknesses": [
+        "Low open rate - subject line needs improvement",
+        "Poor response rate - content or CTA ineffective",
+        "Low collection success - lacks persuasive elements"
+      ],
+      "urgentRecommendations": [
+        "Complete template redesign recommended",
+        "Study top performers for structure and language"
+      ]
+    }
+  ],
+  "portfolioRecommendations": [
+    "Replicate subject line strategies from urgent_final_notice_v3",
+    "Standardize CTA format based on top 5 performers",
+    "Implement A/B testing for underperforming templates",
+    "Consider retiring templates with composite scores below 0.40",
+    "Develop template variations based on debtor demographics"
+  ],
+  "performanceMetrics": {
+    "benchmarkComparisons": {
+      "industryAverageOpenRate": 0.22,
+      "portfolioAverageOpenRate": 0.28,
+      "industryAverageResponseRate": 0.12,
+      "portfolioAverageResponseRate": 0.16,
+      "industryAverageCollectionRate": 0.25,
+      "portfolioAverageCollectionRate": 0.31
+    },
+    "monthlyTrends": {
+      "Q1_2023": { "averageScore": 0.58, "topPerformerCount": 3 },
+      "Q2_2023": { "averageScore": 0.62, "topPerformerCount": 4 },
+      "Q3_2023": { "averageScore": 0.66, "topPerformerCount": 5 },
+      "Q4_2023": { "averageScore": 0.68, "topPerformerCount": 5 }
+    }
+  },
+  "nextActions": {
+    "immediate": [
+      "Deploy top performer templates to wider audience segments",
+      "Pause underperforming templates (score < 0.45)",
+      "Create A/B test plan for middle-tier performers"
+    ],
+    "shortTerm": [
+      "Develop new templates based on top performer patterns",
+      "Implement dynamic template selection based on debtor profile",
+      "Set up automated performance monitoring alerts"
+    ],
+    "longTerm": [
+      "Build machine learning model for template optimization",
+      "Develop personalization engine for email content",
+      "Create predictive scoring for new template concepts"
+    ]
+  }
+}
