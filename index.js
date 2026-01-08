@@ -1317,6 +1317,118 @@ const handlers = {
     };
   },
 
+  // Get all messages (for unified inbox) with filtering
+  getMessages: async (data) => {
+    const { channel, reid, status, limit = 100, offset = 0 } = data || {};
+
+    try {
+      const msgRows = await getSheetData(CONFIG.SHEETS.NOTE_HISTORY, `${CONFIG.TABS.MESSAGE_LOG}!A:I`);
+
+      if (msgRows.length === 0) {
+        return { success: true, messages: [], count: 0, total: 0 };
+      }
+
+      const hasHeaders = msgRows[0] && String(msgRows[0][0] || '').toUpperCase().includes('MESSAGE');
+      const startIdx = hasHeaders ? 1 : 0;
+
+      let messages = [];
+
+      for (let i = startIdx; i < msgRows.length; i++) {
+        const row = msgRows[i];
+        if (!row || row.length === 0) continue;
+
+        const msg = {
+          messageId: row[0] || '',
+          timestamp: row[1] || '',
+          reid: row[2] || '',
+          recipients: row[3] || '',
+          channel: row[4] || 'SMS',
+          content: row[5] || '',
+          scheduledDate: row[6] || '',
+          status: row[7] || 'SENT',
+          sentBy: row[8] || 'System',
+          isInbound: String(row[4] || '').includes('INBOUND'),
+          read: !String(row[7] || '').includes('UNREAD')
+        };
+
+        if (channel) {
+          const normalizedChannel = channel.toUpperCase();
+          const msgChannel = String(msg.channel).toUpperCase();
+          if (normalizedChannel === 'SMS' && !msgChannel.includes('SMS')) continue;
+          if (normalizedChannel === 'EMAIL' && !msgChannel.includes('EMAIL')) continue;
+          if (normalizedChannel === 'VOICE' && !msgChannel.includes('VOICE')) continue;
+        }
+        if (reid && msg.reid !== reid) continue;
+        if (status && msg.status !== status) continue;
+
+        messages.push(msg);
+      }
+
+      messages.sort((a, b) => {
+        const dateA = new Date(a.timestamp);
+        const dateB = new Date(b.timestamp);
+        if (isNaN(dateA.getTime())) return 1;
+        if (isNaN(dateB.getTime())) return -1;
+        return dateB - dateA;
+      });
+
+      const total = messages.length;
+      messages = messages.slice(offset, offset + limit);
+
+      return {
+        success: true,
+        messages,
+        count: messages.length,
+        total,
+        offset,
+        limit,
+        timestamp: new Date().toISOString()
+      };
+    } catch (err) {
+      console.log('Note: MESSAGE_LOG not available:', err.message);
+      return { success: true, messages: [], count: 0, total: 0, error: 'MESSAGE_LOG not found' };
+    }
+  },
+
+  // Mark message as read
+  markMessageRead: async (data) => {
+    const { messageId } = data;
+    if (!messageId) throw new Error('messageId is required');
+
+    const sheets = await getSheets();
+    const msgRows = await getSheetData(CONFIG.SHEETS.NOTE_HISTORY, `${CONFIG.TABS.MESSAGE_LOG}!A:I`);
+
+    let rowIndex = -1;
+    for (let i = 0; i < msgRows.length; i++) {
+      if (msgRows[i][0] === messageId) {
+        rowIndex = i + 1;
+        break;
+      }
+    }
+
+    if (rowIndex === -1) {
+      throw new Error('Message not found: ' + messageId);
+    }
+
+    const currentStatus = msgRows[rowIndex - 1][7] || '';
+    const newStatus = currentStatus.replace('UNREAD', 'READ').replace('READ_READ', 'READ') || 'READ';
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: CONFIG.SHEETS.NOTE_HISTORY,
+      range: `${CONFIG.TABS.MESSAGE_LOG}!H${rowIndex}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [[newStatus]] }
+    });
+
+    return {
+      success: true,
+      messageId,
+      status: newStatus,
+      timestamp: new Date().toISOString()
+    };
+  },
+
+
   // Get note history for a property
   getNoteHistory: async (data) => {
     const rows = await getSheetData(CONFIG.SHEETS.NOTE_HISTORY, `${CONFIG.TABS.NOTE_HISTORY}!A:H`);
