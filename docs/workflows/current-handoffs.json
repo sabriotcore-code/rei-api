@@ -1,0 +1,22 @@
+{
+  "handoffs": [
+    {
+      "source": "PME",
+      "target": "QUO SMS",
+      "trigger": "New collections case",
+      "data": "Client information and payment details"
+    },
+    {
+      "source": "QUO SMS",
+      "target": "Gmail",
+      "trigger": "Payment reminder sent",
+      "data": "Client response and payment status"
+    },
+    {
+      "source": "Gmail",
+      "target": "PME",
+      "trigger": "Payment confirmation received",
+      "data": "Updated payment status and client information"
+    }
+  ]
+}
