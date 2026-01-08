@@ -1,0 +1,215 @@
+{
+  "dashboard": {
+    "title": "REI Collections Operations Executive Dashboard",
+    "period": "Q4 2024",
+    "lastUpdated": "2024-12-19T10:00:00Z",
+    "keyMetrics": {
+      "operationalEfficiency": {
+        "collectionRate": {
+          "current": 78.5,
+          "target": 80.0,
+          "previousPeriod": 74.2,
+          "trend": "improving",
+          "unit": "percentage"
+        },
+        "averageResolutionTime": {
+          "current": 12.3,
+          "target": 10.0,
+          "previousPeriod": 15.8,
+          "trend": "improving",
+          "unit": "days"
+        },
+        "automationRate": {
+          "current": 65.2,
+          "target": 70.0,
+          "previousPeriod": 58.7,
+          "trend": "improving",
+          "unit": "percentage"
+        }
+      },
+      "financialImpact": {
+        "totalRecovered": {
+          "current": 2450000,
+          "target": 2500000,
+          "previousPeriod": 2180000,
+          "trend": "improving",
+          "unit": "USD"
+        },
+        "operationalCosts": {
+          "current": 485000,
+          "target": 450000,
+          "previousPeriod": 520000,
+          "trend": "improving",
+          "unit": "USD"
+        },
+        "netROI": {
+          "current": 405.1,
+          "target": 450.0,
+          "previousPeriod": 319.2,
+          "trend": "improving",
+          "unit": "percentage"
+        }
+      },
+      "customerExperience": {
+        "satisfactionScore": {
+          "current": 7.2,
+          "target": 8.0,
+          "previousPeriod": 6.8,
+          "trend": "improving",
+          "unit": "score"
+        },
+        "complaintResolutionTime": {
+          "current": 2.1,
+          "target": 1.5,
+          "previousPeriod": 2.8,
+          "trend": "improving",
+          "unit": "days"
+        },
+        "selfServiceAdoption": {
+          "current": 42.8,
+          "target": 50.0,
+          "previousPeriod": 35.6,
+          "trend": "improving",
+          "unit": "percentage"
+        }
+      }
+    },
+    "systemPerformance": {
+      "CORE_COLLECTIONS": {
+        "availability": 99.7,
+        "responseTime": 245,
+        "errorRate": 0.12,
+        "throughput": 15420,
+        "status": "healthy"
+      },
+      "CUSTOMER_PORTAL": {
+        "availability": 99.9,
+        "responseTime": 180,
+        "errorRate": 0.08,
+        "throughput": 8960,
+        "status": "healthy"
+      },
+      "PAYMENT_GATEWAY": {
+        "availability": 99.95,
+        "responseTime": 120,
+        "errorRate": 0.03,
+        "throughput": 12340,
+        "status": "healthy"
+      }
+    },
+    "riskIndicators": {
+      "highRiskAccounts": {
+        "count": 1420,
+        "trend": "stable",
+        "percentageOfTotal": 4.2
+      },
+      "systemIntegrationHealth": {
+        "dataConsistency": 98.7,
+        "syncLatency": 45,
+        "failedTransactions": 23
+      },
+      "complianceMetrics": {
+        "regulatoryCompliance": 99.8,
+        "auditReadiness": 95.2,
+        "dataPrivacyScore": 98.5
+      }
+    },
+    "roiSummary": {
+      "totalInvestment": 1200000,
+      "annualizedReturns": 4861200,
+      "paybackPeriod": 2.95,
+      "netPresentValue": 3661200,
+      "riskAdjustedROI": 385.5,
+      "breakdownByInitiative": {
+        "systemIntegration": {
+          "investment": 450000,
+          "returns": 1840000,
+          "roi": 308.9
+        },
+        "processAutomation": {
+          "investment": 380000,
+          "returns": 1620000,
+          "roi": 326.3
+        },
+        "customerExperienceImprovements": {
+          "investment": 220000,
+          "returns": 890000,
+          "roi": 304.5
+        },
+        "dataAnalytics": {
+          "investment": 150000,
+          "returns": 511200,
+          "roi": 240.8
+        }
+      }
+    },
+    "recommendations": {
+      "immediate": [
+        {
+          "priority": "high",
+          "title": "Accelerate Self-Service Portal Adoption",
+          "description": "Implement gamification and incentive programs to reach 50% self-service adoption target",
+          "expectedImpact": "15% reduction in operational costs",
+          "timeframe": "30 days",
+          "investment": 45000
+        },
+        {
+          "priority": "high",
+          "title": "Optimize High-Risk Account Processing",
+          "description": "Deploy advanced ML models to improve identification and handling of high-risk accounts",
+          "expectedImpact": "8% improvement in collection rates",
+          "timeframe": "45 days",
+          "investment": 75000
+        }
+      ],
+      "shortTerm": [
+        {
+          "priority": "medium",
+          "title": "Enhanced Cross-System Data Synchronization",
+          "description": "Implement real-time data sync to improve data consistency across all three systems",
+          "expectedImpact": "12% improvement in operational efficiency",
+          "timeframe": "90 days",
+          "investment": 120000
+        },
+        {
+          "priority": "medium",
+          "title": "Customer Communication Optimization",
+          "description": "Deploy AI-powered communication scheduling and personalization",
+          "expectedImpact": "20% improvement in customer satisfaction",
+          "timeframe": "120 days",
+          "investment": 95000
+        }
+      ],
+      "longTerm": [
+        {
+          "priority": "medium",
+          "title": "Predictive Collections Strategy",
+          "description": "Develop comprehensive predictive models for proactive collections management",
+          "expectedImpact": "25% improvement in collection efficiency",
+          "timeframe": "180 days",
+          "investment": 200000
+        },
+        {
+          "priority": "low",
+          "title": "Advanced Analytics Dashboard",
+          "description": "Create comprehensive analytics platform for deeper operational insights",
+          "expectedImpact": "Enhanced decision-making capabilities",
+          "timeframe": "240 days",
+          "investment": 150000
+        }
+      ]
+    },
+    "alerts": [
+      {
+        "level": "warning",
+        "message": "Self-service adoption below target - immediate action recommended",
+        "system": "CUSTOMER_PORTAL"
+      },
+      {
+        "level": "info",
+        "message": "Collection rates showing strong upward trend",
+        "system": "CORE_COLLECTIONS"
+      }
+    ]
+  }
+}
