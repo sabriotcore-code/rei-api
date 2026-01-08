@@ -1,0 +1,168 @@
+{
+  "rankingAlgorithm": {
+    "version": "1.0",
+    "description": "Multi-criteria opportunity ranking algorithm for REI collections operations",
+    "methodology": "Weighted composite scoring with normalized metrics",
+    "criteria": {
+      "impact": {
+        "weight": 0.30,
+        "description": "Business impact on collections efficiency and customer experience",
+        "scale": "1-10",
+        "factors": [
+          "Revenue recovery potential",
+          "Customer satisfaction improvement",
+          "Process efficiency gains",
+          "Risk reduction"
+        ]
+      },
+      "feasibility": {
+        "weight": 0.25,
+        "description": "Technical and operational feasibility of implementation",
+        "scale": "1-10",
+        "factors": [
+          "Technical complexity",
+          "Resource availability",
+          "Timeline constraints",
+          "Dependencies"
+        ]
+      },
+      "roi": {
+        "weight": 0.30,
+        "description": "Return on investment and financial benefits",
+        "scale": "1-10",
+        "factors": [
+          "Cost savings",
+          "Revenue increase",
+          "Implementation cost",
+          "Payback period"
+        ]
+      },
+      "strategicAlignment": {
+        "weight": 0.15,
+        "description": "Alignment with REI strategic objectives and collections goals",
+        "scale": "1-10",
+        "factors": [
+          "Strategic priority alignment",
+          "Collections workflow integration",
+          "Data accuracy improvement",
+          "Long-term value creation"
+        ]
+      }
+    },
+    "scoringMethod": {
+      "formula": "WeightedScore = (Impact × 0.30) + (Feasibility × 0.25) + (ROI × 0.30) + (StrategicAlignment × 0.15)",
+      "normalization": "All scores normalized to 1-10 scale before weighting",
+      "finalScore": "Composite score ranging from 1.0 to 10.0"
+    },
+    "rankingTiers": {
+      "tier1": {
+        "scoreRange": "8.0-10.0",
+        "priority": "High Priority",
+        "description": "Immediate implementation recommended",
+        "action": "Fast-track for Q1 implementation"
+      },
+      "tier2": {
+        "scoreRange": "6.0-7.9",
+        "priority": "Medium Priority",
+        "description": "Implementation within 6 months",
+        "action": "Include in quarterly planning"
+      },
+      "tier3": {
+        "scoreRange": "4.0-5.9",
+        "priority": "Low Priority",
+        "description": "Consider for future roadmap",
+        "action": "Monitor and reassess quarterly"
+      },
+      "tier4": {
+        "scoreRange": "1.0-3.9",
+        "priority": "Deferred",
+        "description": "Low value or high risk opportunities",
+        "action": "Archive or require significant changes"
+      }
+    },
+    "adjustmentFactors": {
+      "riskMultiplier": {
+        "high": 0.8,
+        "medium": 0.9,
+        "low": 1.0,
+        "description": "Risk-based score adjustment"
+      },
+      "urgencyBonus": {
+        "critical": 0.5,
+        "urgent": 0.3,
+        "normal": 0.0,
+        "description": "Urgency-based score bonus"
+      },
+      "complexityPenalty": {
+        "high": -0.4,
+        "medium": -0.2,
+        "low": 0.0,
+        "description": "Complexity-based score penalty"
+      }
+    },
+    "calculationSteps": [
+      {
+        "step": 1,
+        "action": "Normalize all input scores to 1-10 scale",
+        "formula": "normalizedScore = (rawScore - minValue) / (maxValue - minValue) * 9 + 1"
+      },
+      {
+        "step": 2,
+        "action": "Apply weighted scoring",
+        "formula": "weightedScore = Σ(criteriaScore × criteriaWeight)"
+      },
+      {
+        "step": 3,
+        "action": "Apply adjustment factors",
+        "formula": "adjustedScore = weightedScore × riskMultiplier + urgencyBonus + complexityPenalty"
+      },
+      {
+        "step": 4,
+        "action": "Bound final score to valid range",
+        "formula": "finalScore = Math.max(1.0, Math.min(10.0, adjustedScore))"
+      },
+      {
+        "step": 5,
+        "action": "Assign tier and ranking",
+        "formula": "tier = determineTierByScore(finalScore)"
+      }
+    ],
+    "implementationGuidelines": {
+      "scoringFrequency": "Monthly reassessment of all opportunities",
+      "dataRequirements": [
+        "Historical collections performance data",
+        "Cost-benefit analysis for each opportunity",
+        "Technical feasibility assessments",
+        "Resource availability constraints",
+        "Strategic priority rankings"
+      ],
+      "validationRules": [
+        "All criteria scores must be between 1-10",
+        "Weights must sum to 1.0",
+        "Minimum 3 stakeholder reviews required",
+        "Historical performance validation where applicable"
+      ],
+      "outputFormat": {
+        "individualScores": "JSON object with detailed scoring breakdown",
+        "rankedList": "Ordered list of opportunities by final score",
+        "tierDistribution": "Summary of opportunities by tier",
+        "recommendedActions": "Specific next steps for each tier"
+      }
+    },
+    "qualityAssurance": {
+      "scoreValidation": "Automated validation of score ranges and calculations",
+      "stakeholderReview": "Cross-functional team review of scoring criteria",
+      "historicalCalibration": "Validation against known successful/failed initiatives",
+      "sensitivityAnalysis": "Testing of weight adjustments on final rankings"
+    },
+    "systemIntegration": {
+      "compatibleSystems": [
+        "REI-COLL-001 (Collections Management)",
+        "REI-CRM-002 (Customer Relationship)",
+        "REI-FIN-003 (Financial Reporting)"
+      ],
+      "dataFlow": "Pulls scoring inputs from system analysis, outputs to prioritization engine",
+      "updateFrequency": "Real-time scoring with batch ranking updates"
+    }
+  }
+}
