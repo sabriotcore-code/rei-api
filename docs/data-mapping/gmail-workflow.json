@@ -1,0 +1,62 @@
+{
+  "emailTemplates": [
+    {
+      "name": "Payment Reminder",
+      "subject": "Payment Reminder: {{amount}} due on {{dueDate}}",
+      "body": "Dear {{customerName}},\n\nThis is a reminder that your payment of {{amount}} is due on {{dueDate]].\n\nPlease make the payment at your earliest convenience.\n\nThank you for your prompt attention to this matter."
+    },
+    {
+      "name": "Overdue Payment Notification",
+      "subject": "Overdue Payment Notification: {{amount}} due on {{dueDate}}",
+      "body": "Dear {{customerName}},\n\nThis is a notification that your payment of {{amount}} is overdue. The payment was due on {{dueDate]].\n\nPlease make the payment at your earliest convenience to avoid any further action."
+    },
+    {
+      "name": "Payment Confirmation",
+      "subject": "Payment Confirmation: {{amount}} received on {{paymentDate}}",
+      "body": "Dear {{customerName}},\n\nThis is a confirmation that we have received your payment of {{amount}} on {{paymentDate]].\n\nThank you for your prompt payment."
+    }
+  ],
+  "automationRules": [
+    {
+      "name": "Send Payment Reminders",
+      "trigger": "7 days before due date",
+      "action": "Send email using Payment Reminder template"
+    },
+    {
+      "name": "Send Overdue Payment Notifications",
+      "trigger": "3 days after due date",
+      "action": "Send email using Overdue Payment Notification template"
+    },
+    {
+      "name": "Send Payment Confirmation",
+      "trigger": "Upon receipt of payment",
+      "action": "Send email using Payment Confirmation template"
+    }
+  ],
+  "currentWorkflows": [
+    {
+      "name": "Manual Email Sending",
+      "description": "Manual email sending for payment reminders and overdue notifications"
+    },
+    {
+      "name": "Manual Email Sending",
+      "description": "Manual email sending for payment confirmation"
+    }
+  ],
+  "apiUsage": {
+    "sendEmail": "https://www.googleapis.com/gmail/v1/users/me/messages/send",
+    "retrieveEmails": "https://www.googleapis.com/gmail/v1/users/me/messages/list"
+  },
+  "authentication": {
+    "scopes": [
+      "https://www.googleapis.com/auth/gmail.send",
+      "https://www.googleapis.com/auth/gmail.readonly"
+    ]
+  },
+  "dataSynchronization": {
+    "patterns": [
+      "Bi-directional synchronization between PME Master Sheet and Gmail",
+      "Uni-directional synchronization from QUO SMS to Gmail"
+    ]
+  }
+}
