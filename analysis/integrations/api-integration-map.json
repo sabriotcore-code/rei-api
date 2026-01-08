@@ -1,0 +1,104 @@
+{
+  "systems": [
+    {
+      "id": "system-1",
+      "name": "Collections Management System",
+      "integrations": [
+        {
+          "id": "integration-1",
+          "name": "Customer Information API",
+          "description": "Retrieves customer information from the CRM system",
+          "endpoint": "https://crm-system.com/api/customers",
+          "requestMethod": "GET",
+          "responseData": {
+            "customer_id": "string",
+            "name": "string",
+            "email": "string"
+          }
+        },
+        {
+          "id": "integration-2",
+          "name": "Payment Processing API",
+          "description": "Processes customer payments",
+          "endpoint": "https://payment-system.com/api/payments",
+          "requestMethod": "POST",
+          "requestBody": {
+            "customer_id": "string",
+            "amount": "number"
+          },
+          "responseData": {
+            "payment_id": "string",
+            "status": "string"
+          }
+        }
+      ]
+    },
+    {
+      "id": "system-2",
+      "name": "Customer Relationship Management System",
+      "integrations": [
+        {
+          "id": "integration-3",
+          "name": "Customer Interaction API",
+          "description": "Logs customer interactions",
+          "endpoint": "https://crm-system.com/api/interactions",
+          "requestMethod": "POST",
+          "requestBody": {
+            "customer_id": "string",
+            "interaction_type": "string",
+            "notes": "string"
+          },
+          "responseData": {
+            "interaction_id": "string"
+          }
+        }
+      ]
+    },
+    {
+      "id": "system-3",
+      "name": "Payment Processing System",
+      "integrations": [
+        {
+          "id": "integration-4",
+          "name": "Payment Status API",
+          "description": "Retrieves payment status",
+          "endpoint": "https://payment-system.com/api/payments/status",
+          "requestMethod": "GET",
+          "requestParams": {
+            "payment_id": "string"
+          },
+          "responseData": {
+            "status": "string"
+          }
+        }
+      ]
+    }
+  ],
+  "dataFlow": [
+    {
+      "sourceSystem": "system-1",
+      "destinationSystem": "system-2",
+      "data": {
+        "customer_id": "string",
+        "name": "string",
+        "email": "string"
+      }
+    },
+    {
+      "sourceSystem": "system-1",
+      "destinationSystem": "system-3",
+      "data": {
+        "customer_id": "string",
+        "amount": "number"
+      }
+    },
+    {
+      "sourceSystem": "system-3",
+      "destinationSystem": "system-1",
+      "data": {
+        "payment_id": "string",
+        "status": "string"
+      }
+    }
+  ]
+}
