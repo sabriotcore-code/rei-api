@@ -1,0 +1,29 @@
+{
+  "systems": [
+    {
+      "system_id": "REI_SYS_01",
+      "issues": [
+        {
+          "type": "timing",
+          "description": "Data updates between REI_SYS_01 and REI_SYS_02 are delayed by an average of 5 hours, impacting real-time customer service",
+          "impact": "Medium"
+        },
+        {
+          "type": "missingDataFlow",
+          "description": "Transactions from REI_SYS_01 to REI_SYS_03 are missing 10% of data packets due to loss during transmission",
+          "impact": "High"
+        }
+      ]
+    },
+    {
+      "system_id": "REI_SYS_02",
+      "issues": [
+        {
+          "type": "inconsistency",
+          "description": "Customer profile data between REI_SYS_02 and REI_SYS_03 are inconsistently updated, affecting user account accuracy",
+          "impact": "High"
+        }
+      ]
+    }
+  ]
+}
