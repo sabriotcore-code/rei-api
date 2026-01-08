@@ -1,0 +1,22 @@
+{
+  "emailTriggers": [
+    "successful_payment",
+    "failed_payment",
+    "payment_reminder",
+    "payment_overdue"
+  ],
+  "batchSendingProcesses": [
+    {
+      "trigger": "hourly",
+      "frequency": "every hour"
+    }
+  ],
+  "timingIntervals": {
+    "payment_reminder": "3 days before payment due date",
+    "payment_overdue": "1 day after payment due date"
+  },
+  "frequencyPatterns": {
+    "payment_reminder": "every 3 days until payment is made",
+    "payment_overdue": "every 7 days until payment is made"
+  }
+}
