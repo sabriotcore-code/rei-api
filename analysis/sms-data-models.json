@@ -1,0 +1,27 @@
+{
+  "message_history": {
+    "id": "integer",
+    "customer_id": "integer",
+    "message_type": "string",
+    "message_content": "text",
+    "created_at": "timestamp"
+  },
+  "customer_preferences": {
+    "id": "integer",
+    "customer_id": "integer",
+    "communication_channel": "string",
+    "opt_out": "boolean"
+  },
+  "opt_out_requests": {
+    "id": "integer",
+    "customer_id": "integer",
+    "request_date": "date"
+  },
+  "communication_logs": {
+    "id": "integer",
+    "customer_id": "integer",
+    "communication_channel": "string",
+    "attempt_date": "date",
+    "success": "boolean"
+  }
+}
