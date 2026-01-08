@@ -1,0 +1,48 @@
+{
+  "automationPoints": [
+    {
+      "name": "Payment Reminders",
+      "trigger": "overdue-payment",
+      "action": "send-payment-reminder",
+      "rule": "send-reminders-3-days-after-due-date"
+    },
+    {
+      "name": "Payment Confirmations",
+      "trigger": "payment-receipt",
+      "action": "send-payment-confirmation",
+      "rule": "send-confirmations-within-1-hour"
+    },
+    {
+      "name": "Collections Escalations",
+      "trigger": "overdue-payment",
+      "action": "escalate-to-collections-team",
+      "rule": "escalate-7-days-after-due-date"
+    }
+  ],
+  "apiCalls": {
+    "pme": {
+      "getPayments": "GET /payments",
+      "postPayments": "POST /payments"
+    },
+    "quoSms": {
+      "postSendMessage": "POST /send-message"
+    },
+    "gmail": {
+      "postSendEmail": "POST /send-email"
+    }
+  },
+  "dataTransformations": {
+    "paymentStatus": {
+      "overdue": "3 days after payment due date",
+      "paid": "payment receipt in PME"
+    },
+    "collectionsStatus": {
+      "escalated": "7 days after payment due date"
+    }
+  },
+  "systemInteractions": {
+    "pmeQuoSms": "PME triggers QUO SMS to send payment reminders and confirmations",
+    "quoSmsGmail": "QUO SMS triggers Gmail to send payment reminders and confirmations",
+    "pmeGmail": "PME triggers Gmail to send collections escalations"
+  }
+}
