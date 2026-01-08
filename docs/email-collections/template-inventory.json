@@ -1,0 +1,19 @@
+{
+  "templates": [
+    {
+      "name": "payment-reminder.html",
+      "purpose": "Send a reminder to customers about overdue payments.",
+      "variables": ["customer_name", "payment_due_date", "amount_due"]
+    },
+    {
+      "name": "payment-confirmation.html",
+      "purpose": "Send a confirmation to customers about successful payments.",
+      "variables": ["customer_name", "payment_date", "amount_paid"]
+    },
+    {
+      "name": "collections-notice.txt",
+      "purpose": "Send a notice to customers about collections proceedings.",
+      "variables": ["customer_name", "debt_amount", "collections_agency"]
+    }
+  ]
+}
